@@ -11,7 +11,7 @@ export const CATEGORY_KEYWORDS = {
     "chatgpt", "openai", "gpt-", "claude", "anthropic", "gemini", "deepmind", "llm", "sprachmodell",
     "sora", "veo", "runway", "kling", "higgsfield", "midjourney", "stable diffusion", "flux", "pika", "luma",
     "elevenlabs", "suno", "copilot", "nano banana", "ki-video", "ai video", "generative", "generativ",
-    "machine learning", "neural", "mistral", "llama", "grok", "perplexity", "notebooklm", "agent",
+    "machine learning", "neural", "mistral", "llama", "grok", "perplexity", "notebooklm", "ki-agent", "ai agent", "agents", "agenten",
   ],
   social: [
     "instagram", "tiktok", "youtube", "reels", "shorts", "threads", "facebook", "snapchat", "linkedin",
@@ -27,14 +27,14 @@ export const CATEGORY_KEYWORDS = {
     "osmo", "insta360", "gopro", "sigma", "tamron", "zeiss", "leica", "atomos", "aputure", "godox", "sennheiser",
   ],
   marketing: [
-    "ads", "werbung", "anzeigen", "leadgen", "lead ", "leads", "marketing", "kampagne", "campaign", "roas", "cpm",
+    "ads", "werbung", "werbeanzeigen", "anzeigenkampagne", "leadgen", "lead ", "leads", "marketing", "kampagne", "campaign", "roas", "cpm",
     "conversion", "funnel", "seo", "google business", "local business", "kleine unternehmen",
     "mittelstand", "kmu", "recruiting", "employer branding", "kunden gewinnen", "akquise", "advertiser",
     "werbetreibende", "performance marketing", "retargeting", "landingpage", "landing page", "crm",
   ],
   trends: [
     "viral", "trend", "meme", "challenge", "hype", "popkultur", "pop culture", "promi", "celebrity", "gossip",
-    "netflix", "kino", "charts", "song", "sound", "tiktok-trend", "internet", "slang", "drama", "skandal",
+    "netflix", "kino", "charts", "song", "sound", "tiktok-trend", "slang", "drama", "skandal",
   ],
 };
 

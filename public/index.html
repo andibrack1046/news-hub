@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>News-Hub</title>
+  <meta name="description" content="Persönlicher News-Hub: Social Media, KI für Creator, Video und Gear, Marketing, Trends, Region Hannover.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#15161A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="News-Hub">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icons/icon-180.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#heute">News-Hub</a>
+      <p class="status" id="status" aria-live="polite">Lade …</p>
+      <nav class="tabs tabs-top" aria-label="Bereiche">
+        <a href="#heute" data-tab="heute">Heute</a>
+        <a href="#alle" data-tab="alle">Alle</a>
+        <a href="#gemerkt" data-tab="gemerkt">Gemerkt</a>
+        <a href="#ideen" data-tab="ideen">Ideen</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="main" tabindex="-1"></main>
+
+  <nav class="tabs tabs-bottom" aria-label="Bereiche">
+    <a href="#heute" data-tab="heute">Heute</a>
+    <a href="#alle" data-tab="alle">Alle</a>
+    <a href="#gemerkt" data-tab="gemerkt">Gemerkt</a>
+    <a href="#ideen" data-tab="ideen">Ideen</a>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
