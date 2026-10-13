@@ -33,7 +33,12 @@ async function networkFirst(req) {
     return fresh;
   } catch {
     const cached = await cache.match(req.url);
-    if (cached) return cached;
+    if (cached) {
+      // Kopie mit Kennzeichen, damit die App „Offline“ anzeigen kann
+      const headers = new Headers(cached.headers);
+      headers.set("x-newshub-offline", "1");
+      return new Response(await cached.arrayBuffer(), { status: 200, headers });
+    }
     return new Response(JSON.stringify({ offline: true, items: [] }), { headers: { "content-type": "application/json" }, status: 503 });
   }
 }

@@ -100,7 +100,7 @@
       const json = await res.json();
       if (json.offline) throw new Error("offline");
       data = json;
-      offline = false;
+      offline = res.headers.get("x-newshub-offline") === "1";
     } catch (err) {
       offline = true;
       if (!data.items.length) {

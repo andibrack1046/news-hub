@@ -34,3 +34,13 @@ Kurzprotokoll pro Etappe. Details und Bedienung stehen in der README.
 - Deckel: `AI_MAX_ITEMS` (40), `AI_MAX_REQUESTS` (8), nur Leads jünger als 48 Std. ohne vorhandenen KI-Text. Kostenschätzung in README (unter 1 USD/Monat mit Haiku).
 - Fehler brechen die Veröffentlichung nie ab (Exit 0, Log). Ohne Key: Schritt übersprungen, getestet. Mit Key noch nicht live getestet (kein Key auf diesem Mac), das muss der erste GitHub-Lauf zeigen.
 - Oberfläche zeigt `ai.summary` und `ai.hook` (mit Balken „Hook“) auf der Karte und in der Ideenliste; Hook landet im Markdown-Export.
+
+## Etappe 6: Feinschliff (13.10.2026)
+- Service Worker in echtem Chrome geprüft: registriert, App-Hülle und news.json im Cache, 8 Karten. Server gestoppt und neu geladen: Seite kommt aus dem Cache, Kopfzeile zeigt „Offline · Stand vor 15 Min.“ (Kennzeichen `x-newshub-offline` auf der Cache-Antwort).
+- Darstellung der KI-Texte mit Testdaten geprüft (Zusammenfassung plus Hook-Balken in der Karte), Testdaten danach wieder entfernt.
+- Kaputte Feeds: pro Quelle Timeout 20 s, Fehler werden geloggt und in `news.json` unter `sources[].error` und `stats.sourcesFailed` vermerkt, die App zeigt „n Quellen gestört“. Alter Stand bleibt 7 Tage erhalten. Nur wenn keine einzige Quelle antwortet, schlägt der Lauf fehl.
+- Ladezeit: keine Frameworks, keine Webfonts, eine JSON-Datei (ca. 220 KB, von GitHub Pages gzip-komprimiert), App-Dateien aus dem Cache.
+- Quellen in einer Datei (`sources.json`), Schlagwortlisten in `scripts/lib/classify.mjs`, Erklärung in README.
+- Workflow-YAML validiert (ruby yaml), Tests laufen auch im Workflow.
+- Übergabe geschrieben: `~/Obsidian/Mein Leben/2026-10-13 Übergabe News-Hub.md`.
+- Nicht geprüft, weil nicht möglich: echter GitHub-Lauf, KI-Schritt mit Key, Installation auf dem iPhone.
