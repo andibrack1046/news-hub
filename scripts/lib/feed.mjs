@@ -67,6 +67,48 @@ function rssLink(item) {
   return link;
 }
 
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i;
+const BAD_IMAGE = /(pixel|tracker|tracking|feedburner|doubleclick|\/stat\?|1x1|spacer|blank\.gif|gravatar|emoji|badge|button|icon|logo)/i;
+
+function looksLikeImage(url = "", type = "", medium = "") {
+  if (!/^https?:\/\//i.test(url)) return false;
+  if (BAD_IMAGE.test(url)) return false;
+  return /^image\//i.test(type) || medium === "image" || IMAGE_EXT.test(url) || (!type && !medium);
+}
+
+// Bild aus den üblichen Feld-Varianten: media:content, media:thumbnail, enclosure, itunes:image, <img> im HTML
+function extractImage(block) {
+  const candidates = [];
+  for (const m of firstTagWithAttrs(block, "media:content")) {
+    if (m.attrs.url && looksLikeImage(m.attrs.url, m.attrs.type, m.attrs.medium)) {
+      candidates.push({ url: m.attrs.url, w: Number(m.attrs.width) || 0 });
+    }
+    for (const t of firstTagWithAttrs(m.inner, "media:thumbnail")) {
+      if (t.attrs.url && looksLikeImage(t.attrs.url)) candidates.push({ url: t.attrs.url, w: Number(t.attrs.width) || 0 });
+    }
+  }
+  for (const t of firstTagWithAttrs(block, "media:thumbnail")) {
+    if (t.attrs.url && looksLikeImage(t.attrs.url)) candidates.push({ url: t.attrs.url, w: Number(t.attrs.width) || 0 });
+  }
+  for (const e of firstTagWithAttrs(block, "enclosure")) {
+    if (e.attrs.url && looksLikeImage(e.attrs.url, e.attrs.type)) candidates.push({ url: e.attrs.url, w: 0 });
+  }
+  for (const i of firstTagWithAttrs(block, "itunes:image")) {
+    if (i.attrs.href && looksLikeImage(i.attrs.href)) candidates.push({ url: i.attrs.href, w: 0 });
+  }
+  if (!candidates.length) {
+    const html = decodeEntities(stripCdata(firstTag(block, ["content:encoded", "description", "summary", "content"])));
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m && looksLikeImage(m[1])) {
+      const wm = m[0].match(/width=["']?(\d+)/i);
+      if (!wm || Number(wm[1]) >= 200) candidates.push({ url: m[1], w: wm ? Number(wm[1]) : 0 });
+    }
+  }
+  if (!candidates.length) return "";
+  candidates.sort((a, b) => b.w - a.w);
+  return candidates[0].url.replace(/^http:\/\//i, "https://");
+}
+
 export function parseFeed(xml) {
   const isAtom = /<feed[\s>]/i.test(xml) && !/<rss[\s>]/i.test(xml);
   const blockTag = isAtom ? "entry" : "item";
@@ -95,7 +137,8 @@ export function parseFeed(xml) {
     }));
 
     if (!title && !link) continue;
-    items.push({ title, link, date, description, source, sourceUrl, author, traffic, newsItems });
+    const image = extractImage(block);
+    items.push({ title, link, date, description, source, sourceUrl, author, traffic, newsItems, image });
   }
   return items;
 }

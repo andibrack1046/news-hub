@@ -9,7 +9,7 @@ export const CATEGORY_KEYWORDS = {
   ki: [
     "ki-", " ki ", "künstliche intelligenz", "kuenstliche intelligenz", " ai ", "ai-", "artificial intelligence",
     "chatgpt", "openai", "gpt-", "claude", "anthropic", "gemini", "deepmind", "llm", "sprachmodell",
-    "sora", "veo", "runway", "kling", "higgsfield", "midjourney", "stable diffusion", "flux", "pika", "luma",
+    "sora", "veo", "runway ml", "runway ai", "runwayml", "runway gen", "kling", "higgsfield", "midjourney", "stable diffusion", "flux", "pika", "luma",
     "elevenlabs", "suno", "copilot", "nano banana", "ki-video", "ai video", "generative", "generativ",
     "machine learning", "neural", "mistral", "llama", "grok", "perplexity", "notebooklm", "ki-agent", "ai agent", "agents", "agenten",
   ],

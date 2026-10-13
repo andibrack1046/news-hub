@@ -12,30 +12,28 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="News-Hub">
   <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="./icons/icon-180.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header class="top">
-    <div class="top-inner">
-      <a class="brand" href="#heute">News-Hub</a>
-      <p class="status" id="status" aria-live="polite">Lade …</p>
-      <nav class="tabs tabs-top" aria-label="Bereiche">
-        <a href="#heute" data-tab="heute">Heute</a>
-        <a href="#alle" data-tab="alle">Alle</a>
-        <a href="#gemerkt" data-tab="gemerkt">Gemerkt</a>
-        <a href="#ideen" data-tab="ideen">Ideen</a>
-      </nav>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="masthead-row">
+        <a class="brand" href="#start">News-Hub</a>
+        <p class="status" id="status" aria-live="polite">Lade …</p>
+      </div>
+      <nav class="ressorts" id="ressort-nav" aria-label="Ressorts"></nav>
     </div>
   </header>
 
   <main id="main" class="main" tabindex="-1"></main>
 
-  <nav class="tabs tabs-bottom" aria-label="Bereiche">
-    <a href="#heute" data-tab="heute">Heute</a>
-    <a href="#alle" data-tab="alle">Alle</a>
+  <nav class="tabs-bottom" aria-label="Bereiche">
+    <a href="#start" data-tab="start">Start</a>
+    <a href="#neueste" data-tab="neueste">Neueste</a>
     <a href="#gemerkt" data-tab="gemerkt">Gemerkt</a>
     <a href="#ideen" data-tab="ideen">Ideen</a>
   </nav>

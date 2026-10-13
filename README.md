@@ -14,7 +14,16 @@ public/               die Web-App (wird auf GitHub Pages ausgeliefert)
 public/data/news.json aktueller Datenstand
 ```
 
-Keine npm-Abhängigkeiten. Node 20 oder neuer.
+Einzige npm-Abhängigkeit ist das Anthropic-SDK für den optionalen KI-Schritt. Node 20 oder neuer.
+
+Ablauf eines Laufs (`npm run fetch`, ca. 15 Sekunden):
+1. alle Quellen parallel holen, Bilder aus den Feeds mitnehmen (`media:content`, `enclosure`, erstes `<img>`)
+2. Google-News-Weiterleitungen in echte Artikel-URLs auflösen (`scripts/lib/gnews.mjs`, Cache in `public/data/gnews-cache.json`, max. 60 neue pro Lauf)
+3. mit dem letzten Stand zusammenführen, Dubletten entfernen, ähnliche Schlagzeilen bündeln, bewerten
+4. für die bestbewerteten Meldungen ohne Bild das Vorschaubild (`og:image`) der Artikelseite holen (max. 80 pro Lauf, jede Meldung nur einmal)
+5. `public/data/news.json` schreiben
+
+Oberfläche: Zeitungsaufbau mit Aufmacher, Top-Themen, Ressort-Blöcken und Ticker (`public/app.js`). Routen: `#start`, `#ressort/<id>`, `#neueste`, `#gemerkt`, `#ideen`.
 
 ## Lokal ausführen
 

@@ -1,30 +1,32 @@
-/* News-Hub: Oberfläche. Kein Framework, keine Abhängigkeiten.
+/* News-Hub: Oberfläche im Zeitungsaufbau. Kein Framework, keine Abhängigkeiten.
    Daten: ./data/news.json (von scripts/fetch.mjs). Zustand: localStorage. */
 (() => {
   "use strict";
 
   const DATA_URL = "./data/news.json";
   const STORE_KEY = "newshub.v1";
-  const TODAY_HOURS = 36;
-  const TODAY_HOURS_FALLBACK = 72;
-  const TODAY_MAX = 8;
+  const FRESH_HOURS = 36;
+  const FRESH_HOURS_FALLBACK = 72;
+  const TOP_COUNT = 6;
   const PAGE_SIZE = 40;
 
   const $main = document.getElementById("main");
   const $status = document.getElementById("status");
   const $toast = document.getElementById("toast");
+  const $nav = document.getElementById("ressort-nav");
 
   // ---------- Zustand ----------
   const defaultState = () => ({
-    saved: {},     // id -> Meldung (Kopie, damit sie nach 7 Tagen nicht verloren geht)
-    ideas: {},     // id -> { item, note, done, createdAt }
-    used: {},      // id -> Zeitstempel "erledigt/verwendet"
+    saved: {},
+    ideas: {},
+    used: {},
     lastVisit: null,
     showDone: false,
     category: "all",
     query: "",
   });
   let state = loadState();
+  state.query = ""; // Suchbegriff gilt nur für die aktuelle Sitzung
   let data = { items: [], categories: [], generatedAt: null, sources: [], stats: {} };
   let itemsById = new Map();
   let offline = false;
@@ -46,15 +48,14 @@
     saveTimer = setTimeout(() => {
       try {
         localStorage.setItem(STORE_KEY, JSON.stringify(state));
-      } catch (err) {
+      } catch {
         toast("Speichern im Browser fehlgeschlagen");
       }
     }, 80);
   }
 
   // ---------- Helfer ----------
-  const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   function timeAgo(iso) {
     if (!iso) return "";
@@ -69,15 +70,17 @@
     if (d < 7) return `vor ${d} Tagen`;
     return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   }
-  const fullDate = (iso) =>
-    iso ? new Date(iso).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "");
+  const fullDate = (iso) => (iso ? new Date(iso).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
   const dateOnly = (iso) => (iso ? new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "");
   const when = (it) => it.publishedAt || it.firstSeenAt;
-  const catLabel = (id) => data.categories.find((c) => c.id === id)?.label || id;
+  const ageH = (it) => (Date.now() - new Date(when(it)).getTime()) / 3600000;
+  const catLabel = (id) => data.categories.find((c) => c.id === id)?.label || id || "";
   const isNew = (it) => previousVisit && it.firstSeenAt && new Date(it.firstSeenAt).getTime() > new Date(previousVisit).getTime();
   const isUsed = (it) => Boolean(state.used[it.id]);
   const isSaved = (it) => Boolean(state.saved[it.id]);
   const isIdea = (it) => Boolean(state.ideas[it.id]);
+  const isToday = (iso) => iso && new Date(iso).toDateString() === new Date().toDateString();
 
   let toastTimer = null;
   function toast(msg) {
@@ -88,8 +91,8 @@
   }
 
   function snapshot(it) {
-    const { title, url, source, category, publishedAt, firstSeenAt, summary, ai, id, discussionUrl } = it;
-    return { id, title, url, source, category, publishedAt, firstSeenAt, summary, ai: ai || null, discussionUrl };
+    const { title, url, source, category, publishedAt, firstSeenAt, summary, ai, id, image } = it;
+    return { id, title, url, source, category, publishedAt, firstSeenAt, summary, ai: ai || null, image: image || null };
   }
 
   // ---------- Daten ----------
@@ -101,10 +104,9 @@
       if (json.offline) throw new Error("offline");
       data = json;
       offline = res.headers.get("x-newshub-offline") === "1";
-    } catch (err) {
+    } catch {
       offline = true;
       if (!data.items.length) {
-        // Service Worker liefert ggf. den letzten Stand, sonst leer
         try {
           const cached = await caches?.match?.(DATA_URL);
           if (cached) data = await cached.json();
@@ -112,50 +114,99 @@
       }
     }
     itemsById = new Map(data.items.map((it) => [it.id, it]));
-    // Kopien in Merkliste/Ideen mit frischen Daten (z. B. KI-Text) auffrischen
     for (const id of Object.keys(state.saved)) if (itemsById.has(id)) state.saved[id] = snapshot(itemsById.get(id));
     for (const id of Object.keys(state.ideas)) if (itemsById.has(id)) state.ideas[id].item = snapshot(itemsById.get(id));
+    renderNav();
     renderStatus();
     render();
   }
 
   function renderStatus() {
+    const wide = window.matchMedia("(min-width: 720px)").matches;
+    const today = new Date().toLocaleDateString("de-DE", wide ? { weekday: "long", day: "numeric", month: "long" } : { weekday: "short", day: "numeric", month: "short" });
     if (!data.generatedAt) {
-      $status.textContent = offline ? "Offline, keine Daten" : "Keine Daten";
+      $status.textContent = offline ? "Offline, keine Daten" : today;
       $status.classList.toggle("offline", offline);
       return;
     }
     const failed = data.stats?.sourcesFailed?.length || 0;
-    $status.textContent = `${offline ? "Offline · " : ""}Stand ${timeAgo(data.generatedAt)}${failed ? ` · ${failed} Quellen gestört` : ""}`;
+    const stand = isToday(data.generatedAt) ? `Stand ${clock(data.generatedAt)} Uhr` : `Stand ${timeAgo(data.generatedAt)}`;
+    $status.textContent = `${offline ? "Offline · " : ""}${today} · ${stand}${failed ? ` · ${failed} Quellen gestört` : ""}`;
     $status.title = `Zuletzt aktualisiert: ${fullDate(data.generatedAt)}`;
     $status.classList.toggle("offline", offline);
   }
 
-  // ---------- Auswahl ----------
-  function currentTab() {
-    const h = (location.hash || "#heute").slice(1);
-    return ["heute", "alle", "gemerkt", "ideen"].includes(h) ? h : "heute";
+  function renderNav() {
+    const route = currentRoute();
+    const links = [
+      { href: "#start", label: "Start", active: route.view === "start" },
+      ...data.categories.map((c) => ({ href: `#ressort/${c.id}`, label: c.label, active: route.view === "ressort" && route.id === c.id })),
+      { href: "#neueste", label: "Neueste", active: route.view === "neueste" },
+      { href: "#gemerkt", label: "Gemerkt", active: route.view === "gemerkt" },
+      { href: "#ideen", label: "Ideen", active: route.view === "ideen" },
+    ];
+    $nav.innerHTML = links.map((l) => `<a href="${l.href}"${l.active ? ' aria-current="page"' : ""}>${esc(l.label)}</a>`).join("");
+    const active = $nav.querySelector('[aria-current="page"]');
+    if (active && typeof active.scrollIntoView === "function") {
+      try { active.scrollIntoView({ block: "nearest", inline: "center", behavior: "instant" }); } catch {}
+    }
+    document.querySelectorAll(".tabs-bottom a").forEach((a) => {
+      if (a.dataset.tab === route.view) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
   }
 
-  function pickToday(items) {
-    const now = Date.now();
-    const leads = items.filter((it) => it.lead !== false && !isUsed(it));
-    const within = (hours) => leads.filter((it) => now - new Date(when(it)).getTime() < hours * 3600000);
-    let pool = within(TODAY_HOURS);
-    if (pool.length < 5) pool = within(TODAY_HOURS_FALLBACK);
-    pool.sort((a, b) => b.score - a.score);
+  // ---------- Routing ----------
+  function currentRoute() {
+    const h = (location.hash || "#start").slice(1);
+    if (h === "heute" || h === "" || h === "start") return { view: "start" };
+    if (h === "alle" || h === "neueste") return { view: "neueste" };
+    if (h.startsWith("ressort/")) {
+      const id = h.slice(8);
+      if (data.categories.some((c) => c.id === id)) return { view: "ressort", id };
+      return { view: "start" };
+    }
+    if (h === "gemerkt" || h === "ideen") return { view: h };
+    return { view: "start" };
+  }
+
+  // ---------- Auswahl ----------
+  const leads = () => data.items.filter((it) => it.lead !== false && !isUsed(it));
+
+  function freshPool(items, hours = FRESH_HOURS, min = 6) {
+    let pool = items.filter((it) => ageH(it) < hours);
+    if (pool.length < min) pool = items.filter((it) => ageH(it) < FRESH_HOURS_FALLBACK);
+    if (pool.length < min) pool = items.slice();
+    return pool.sort((a, b) => b.score - a.score);
+  }
+
+  // Aufmacher plus Top-Themen: bestbewertet, höchstens 2 pro Ressort und 2 pro Quelle, Aufmacher mit Bild
+  function pickFront(items) {
+    const pool = freshPool(items);
     const perCat = {};
     const perSource = {};
-    const out = [];
+    const picked = [];
     for (const it of pool) {
-      if ((perCat[it.category] || 0) >= 3) continue;
-      if ((perSource[it.source] || 0) >= 2) continue;
+      if ((perCat[it.category] || 0) >= 2 || (perSource[it.source] || 0) >= 2) continue;
       perCat[it.category] = (perCat[it.category] || 0) + 1;
       perSource[it.source] = (perSource[it.source] || 0) + 1;
-      out.push(it);
-      if (out.length >= TODAY_MAX) break;
+      picked.push(it);
+      if (picked.length >= TOP_COUNT + 1) break;
     }
-    return out;
+    let heroIdx = picked.findIndex((it, i) => i < 4 && it.image);
+    if (heroIdx < 0) heroIdx = 0;
+    const hero = picked[heroIdx];
+    const top = picked.filter((_, i) => i !== heroIdx);
+    return { hero, top };
+  }
+
+  function pickRessort(catId, exclude, leadCount = 1, rowCount = 4) {
+    const pool = freshPool(leads().filter((it) => it.category === catId && !exclude.has(it.id)), 72, 3);
+    let leadIdx = pool.findIndex((it, i) => i < 3 && it.image);
+    if (leadIdx < 0) leadIdx = 0;
+    const lead = pool[leadIdx];
+    const rows = pool.filter((_, i) => i !== leadIdx).slice(0, rowCount);
+    return { lead, rows, total: pool.length };
   }
 
   function filterAll(items) {
@@ -173,89 +224,201 @@
     return data.items.filter((o) => o.clusterId === it.clusterId && o.id !== it.id);
   }
 
-  // ---------- Darstellung ----------
-  function card(it, { top = false, compact = false } = {}) {
-    const used = isUsed(it);
-    const rel = relatedOf(it);
-    const ai = it.ai && (it.ai.summary || it.ai.hook);
-    return `
-<article class="card${top ? " top" : ""}${used ? " done" : ""}${compact ? " compact" : ""}" data-id="${esc(it.id)}">
-  <h2 class="title"><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h2>
-  <p class="meta">
-    ${isNew(it) ? '<span class="new">Neu</span><span>·</span>' : ""}
-    <span>${esc(catLabel(it.category))}</span><span>·</span>
-    <span>${esc(it.source)}</span><span>·</span>
-    <time datetime="${esc(when(it))}" title="${esc(fullDate(when(it)))}">${esc(timeAgo(when(it)))}</time>
-    ${it.alsoIn?.length ? `<span>·</span><span>auch bei ${esc(it.alsoIn.join(", "))}</span>` : ""}
-  </p>
-  ${it.summary ? `<p class="summary">${esc(it.summary)}</p>` : ""}
-  ${ai ? `<div class="ai">${it.ai.summary ? `<p>${esc(it.ai.summary)}</p>` : ""}${it.ai.hook ? `<p><span class="bar">Hook</span>${esc(it.ai.hook)}</p>` : ""}</div>` : ""}
-  ${rel.length ? `<details class="related"><summary>${rel.length === 1 ? "1 ähnliche Meldung" : `${rel.length} ähnliche Meldungen`}</summary><ul>${rel
-    .map((r) => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}<span>${esc(r.source)} · ${esc(timeAgo(when(r)))}</span></a></li>`)
-    .join("")}</ul></details>` : ""}
-  <div class="actions">
-    <button class="pill" data-action="save" aria-pressed="${isSaved(it)}">${isSaved(it) ? "Gemerkt" : "Merken"}</button>
-    <button class="pill" data-action="idea" aria-pressed="${isIdea(it)}">${isIdea(it) ? "In Ideen" : "Videoidee"}</button>
-    <button class="pill quiet" data-action="used" aria-pressed="${used}">${used ? "Erledigt" : "Erledigt?"}</button>
-  </div>
-</article>`;
+  // ---------- Bausteine ----------
+  function imgHtml(it, cls = "") {
+    const src = it.image;
+    const sourceAttr = `data-source="${esc(it.source || "")}"`;
+    if (!src) return `<a class="img none ${cls}" ${sourceAttr} href="${esc(it.url)}" target="_blank" rel="noopener" aria-hidden="true" tabindex="-1"></a>`;
+    return `<a class="img ${cls}" ${sourceAttr} href="${esc(it.url)}" target="_blank" rel="noopener" aria-hidden="true" tabindex="-1"><img src="${esc(src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('.img').classList.add('broken')"></a>`;
   }
 
-  function viewHeute() {
-    const items = data.items;
-    const top = pickToday(items);
-    const topIds = new Set(top.map((t) => t.id));
-    const newCount = previousVisit ? items.filter(isNew).length : 0;
-    const sub = !items.length
-      ? offline ? "Offline und noch kein gespeicherter Stand." : "Noch keine Daten. Der erste Abruf läuft oder ist fehlgeschlagen."
-      : newCount
-        ? `${newCount} neue Meldungen seit deinem letzten Besuch.`
-        : `${items.length} Meldungen aus den letzten Tagen, ${data.stats?.sourcesOk ?? "?"} Quellen.`;
+  function metaHtml(it, { withCat = true } = {}) {
+    const parts = [];
+    if (isNew(it)) parts.push('<span class="new">Neu</span>');
+    if (withCat) parts.push(`<a href="#ressort/${esc(it.category)}">${esc(catLabel(it.category))}</a>`);
+    parts.push(`<span>${esc(it.source)}</span>`);
+    parts.push(`<time datetime="${esc(when(it))}" title="${esc(fullDate(when(it)))}">${esc(timeAgo(when(it)))}</time>`);
+    if (it.alsoIn?.length) parts.push(`<span>auch bei ${esc(it.alsoIn.join(", "))}</span>`);
+    return `<p class="meta">${parts.join("<span>·</span>")}</p>`;
+  }
 
-    const extra = data.categories
+  function pillsHtml(it) {
+    const used = isUsed(it);
+    return `<div class="actions">
+      <button class="pill" data-action="save" aria-pressed="${isSaved(it)}">${isSaved(it) ? "Gemerkt" : "Merken"}</button>
+      <button class="pill" data-action="idea" aria-pressed="${isIdea(it)}">${isIdea(it) ? "In Ideen" : "Videoidee"}</button>
+      <button class="pill quiet" data-action="used" aria-pressed="${used}">${used ? "Erledigt" : "Erledigt?"}</button>
+    </div>`;
+  }
+
+  function miniHtml(it, { withUsed = true } = {}) {
+    return `<div class="mini">
+      <button data-action="save" aria-pressed="${isSaved(it)}">${isSaved(it) ? "Gemerkt" : "Merken"}</button>
+      <button data-action="idea" aria-pressed="${isIdea(it)}">${isIdea(it) ? "In Ideen" : "Videoidee"}</button>
+      ${withUsed ? `<button data-action="used" aria-pressed="${isUsed(it)}">${isUsed(it) ? "Erledigt" : "Erledigt?"}</button>` : ""}
+    </div>`;
+  }
+
+  function relatedHtml(it) {
+    const rel = relatedOf(it);
+    if (!rel.length) return "";
+    return `<details class="related"><summary>${rel.length === 1 ? "1 ähnliche Meldung" : `${rel.length} ähnliche Meldungen`}</summary><ul>${rel
+      .map((r) => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}<span>${esc(r.source)} · ${esc(timeAgo(when(r)))}</span></a></li>`)
+      .join("")}</ul></details>`;
+  }
+
+  function teaserText(it) {
+    return it.ai?.summary || it.summary || "";
+  }
+  function hookHtml(it) {
+    return it.ai?.hook ? `<p class="hook"><span class="bar">Hook</span>${esc(it.ai.hook)}</p>` : "";
+  }
+
+  function heroHtml(it) {
+    return `<article class="hero${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
+      ${imgHtml(it)}
+      <div>
+        <span class="kicker">${esc(catLabel(it.category))}</span>
+        <h2><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h2>
+        ${teaserText(it) ? `<p class="teaser">${esc(teaserText(it))}</p>` : ""}
+        ${hookHtml(it)}
+        ${metaHtml(it, { withCat: false })}
+        ${relatedHtml(it)}
+        ${pillsHtml(it)}
+      </div>
+    </article>`;
+  }
+
+  function tileHtml(it) {
+    return `<article class="tile${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
+      ${imgHtml(it)}
+      <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+      ${metaHtml(it)}
+      ${miniHtml(it, { withUsed: false })}
+    </article>`;
+  }
+
+  function leadHtml(it, { withCat = false } = {}) {
+    return `<article class="lead${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
+      ${imgHtml(it)}
+      <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+      ${teaserText(it) ? `<p class="teaser">${esc(teaserText(it))}</p>` : ""}
+      ${hookHtml(it)}
+      ${metaHtml(it, { withCat })}
+      ${relatedHtml(it)}
+      ${pillsHtml(it)}
+    </article>`;
+  }
+
+  function rowHtml(it, { withCat = true, thumb = true } = {}) {
+    const showThumb = thumb && Boolean(it.image);
+    return `<article class="row${showThumb ? "" : " no-thumb"}${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
+      <div>
+        <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+        ${metaHtml(it, { withCat })}
+        ${it.ai?.hook ? `<p class="hook" style="font-size:14px">${esc(it.ai.hook)}</p>` : ""}
+        ${miniHtml(it)}
+      </div>
+      ${showThumb ? imgHtml(it, "square") : ""}
+    </article>`;
+  }
+
+  function tickerHtml(items, count = 14) {
+    const perSource = {};
+    const latest = items
+      .slice()
+      .sort((a, b) => new Date(when(b)) - new Date(when(a)))
+      .filter((it) => {
+        const key = it.sourceId || it.source;
+        perSource[key] = (perSource[key] || 0) + 1;
+        return perSource[key] <= 2;
+      })
+      .slice(0, count);
+    if (!latest.length) return "";
+    return `<section class="ticker" aria-label="Neueste Meldungen">
+      <div class="ressort-head"><h2>Ticker</h2><a href="#neueste">Alle Meldungen</a></div>
+      <ul>${latest
+        .map((it) => `<li><time datetime="${esc(when(it))}">${esc(isToday(when(it)) ? clock(when(it)) : timeAgo(when(it)))}</time><div><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a><span>${esc(catLabel(it.category))} · ${esc(it.source)}</span></div></li>`)
+        .join("")}</ul>
+    </section>`;
+  }
+
+  // ---------- Seiten ----------
+  function viewStart() {
+    const all = leads();
+    if (!all.length) {
+      return `<div class="page-head"><h1>News-<span class="bar">Hub</span></h1><p>${offline ? "Offline und noch kein gespeicherter Stand." : "Noch keine Daten. Der erste Abruf läuft oder ist fehlgeschlagen."}</p></div>`;
+    }
+    const { hero, top } = pickFront(all);
+    const used = new Set([hero.id, ...top.map((t) => t.id)]);
+    const newCount = previousVisit ? data.items.filter(isNew).length : 0;
+
+    const ressorts = data.categories
       .map((c) => {
-        const rows = items
-          .filter((it) => it.category === c.id && it.lead !== false && !topIds.has(it.id) && !isUsed(it))
-          .filter((it) => Date.now() - new Date(when(it)).getTime() < 48 * 3600000)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3);
-        if (!rows.length) return "";
-        return `<h2 class="section-title">${esc(c.label)}</h2><div class="rows">${rows
-          .map((it) => `<a class="row" href="${esc(it.url)}" target="_blank" rel="noopener" data-id="${esc(it.id)}"><b>${esc(it.title)}</b><span>${esc(it.source)} · ${esc(timeAgo(when(it)))}</span></a>`)
-          .join("")}</div>`;
+        const { lead, rows, total } = pickRessort(c.id, used);
+        if (!lead) return "";
+        [lead, ...rows].forEach((it) => used.add(it.id));
+        return `<section class="ressort" aria-label="${esc(c.label)}">
+          <div class="ressort-head"><h2>${esc(c.label)}</h2><a href="#ressort/${esc(c.id)}">Alle ${total} Meldungen</a></div>
+          <div class="ressort-body">
+            ${leadHtml(lead)}
+            <div class="rows">${rows.map((it) => rowHtml(it, { withCat: false })).join("")}</div>
+          </div>
+        </section>`;
       })
       .join("");
 
     const failed = data.stats?.sourcesFailed || [];
     return `
-<div class="view-head"><h1>Was heute <span class="bar">zählt</span></h1><p>${esc(sub)}</p></div>
-${top.length ? `<div class="list single">${top.map((it) => card(it, { top: true })).join("")}</div>` : `<div class="empty">Gerade nichts Heißes. Schau unter Alle nach.</div>`}
-${extra ? `<h2 class="section-title" style="margin-top:34px">Außerdem</h2>${extra}` : ""}
-<p class="note">${data.generatedAt ? `Zuletzt aktualisiert ${esc(fullDate(data.generatedAt))}. ` : ""}${failed.length ? `<b>Gestört:</b> ${esc(failed.join(", "))}. ` : ""}${data.ai?.lastRunAt ? `KI-Texte zuletzt ${esc(timeAgo(data.ai.lastRunAt))} (${data.ai.summarized} Meldungen). ` : ""}Aktualisierung alle drei Stunden über GitHub Actions.</p>`;
+      <div class="with-ticker">
+        <div>
+          ${heroHtml(hero)}
+          <div class="grid">${top.map(tileHtml).join("")}</div>
+          ${ressorts}
+        </div>
+        ${tickerHtml(all)}
+      </div>
+      <p class="note">${newCount ? `<b>${newCount} neue Meldungen</b> seit deinem letzten Besuch. ` : ""}${data.items.length} Meldungen aus ${data.stats?.sourcesOk ?? "?"} Quellen, zuletzt aktualisiert ${esc(fullDate(data.generatedAt))}. ${failed.length ? `<b>Gestört:</b> ${esc(failed.join(", "))}. ` : ""}${data.ai?.lastRunAt ? `KI-Texte zuletzt ${esc(timeAgo(data.ai.lastRunAt))}. ` : ""}Aktualisierung alle drei Stunden.</p>`;
   }
 
-  function viewAlle() {
+  function viewRessort(catId) {
+    const label = catLabel(catId);
+    const pool = leads().filter((it) => it.category === catId);
+    const sorted = pool.slice().sort((a, b) => new Date(when(b)) - new Date(when(a)));
+    const { lead } = pickRessort(catId, new Set(), 1, 0);
+    const rest = sorted.filter((it) => it.id !== lead?.id);
+    const shown = rest.slice(0, visibleCount);
+    const words = label.split(" ");
+    const last = words.pop();
+    return `
+      <div class="page-head"><h1>${esc(words.join(" "))} <span class="bar">${esc(last)}</span></h1><p>${pool.length} Meldungen aus den letzten Tagen.</p></div>
+      ${lead ? heroHtml(lead) : `<div class="empty">Gerade nichts in diesem Ressort.</div>`}
+      <div class="rows two">${shown.map((it) => rowHtml(it, { withCat: false })).join("")}</div>
+      ${rest.length > shown.length ? `<div class="more"><button class="pill" data-action="more">Mehr laden (${rest.length - shown.length} weitere)</button></div>` : ""}`;
+  }
+
+  function viewNeueste() {
     const list = filterAll(data.items);
     const shown = list.slice(0, visibleCount);
     const chips = [{ id: "all", label: "Alle" }, ...data.categories]
       .map((c) => `<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${state.category === c.id}">${esc(c.label)}</button>`)
       .join("");
     return `
-<div class="view-head"><h1>Alle <span class="bar">Meldungen</span></h1><p>${list.length} Treffer${state.query ? ` für „${esc(state.query)}“` : ""}.</p></div>
-<div class="toolbar">
-  <input class="search" id="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" autocomplete="off" autocapitalize="off" enterkeyhint="search">
-  <div class="chips">${chips}</div>
-</div>
-<div class="toolbar-row"><button class="pill small quiet" data-action="toggle-done" aria-pressed="${state.showDone}">${state.showDone ? "Erledigte ausblenden" : "Erledigte anzeigen"}</button><span>${Object.keys(state.used).length} erledigt</span></div>
-${shown.length ? `<div class="list" style="margin-top:12px">${shown.map((it) => card(it)).join("")}</div>` : `<div class="empty" style="margin-top:12px">Nichts gefunden.</div>`}
-${list.length > shown.length ? `<div class="more"><button class="pill" data-action="more">Mehr laden (${list.length - shown.length} weitere)</button></div>` : ""}`;
+      <div class="page-head"><h1>Neueste <span class="bar">Meldungen</span></h1><p>${list.length} Treffer${state.query ? ` für „${esc(state.query)}“` : ""}, neueste zuerst.</p></div>
+      <div class="toolbar">
+        <input class="search" id="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" autocomplete="off" autocapitalize="off" enterkeyhint="search">
+        <div class="chips">${chips}</div>
+      </div>
+      <div class="toolbar-row"><button class="pill small quiet" data-action="toggle-done" aria-pressed="${state.showDone}">${state.showDone ? "Erledigte ausblenden" : "Erledigte anzeigen"}</button><span>${Object.keys(state.used).length} erledigt</span></div>
+      ${shown.length ? `<div class="rows two">${shown.map((it) => rowHtml(it)).join("")}</div>` : `<div class="empty">Nichts gefunden.</div>`}
+      ${list.length > shown.length ? `<div class="more"><button class="pill" data-action="more">Mehr laden (${list.length - shown.length} weitere)</button></div>` : ""}`;
   }
 
   function viewGemerkt() {
     const items = Object.values(state.saved).sort((a, b) => new Date(when(b)) - new Date(when(a)));
     return `
-<div class="view-head"><h1><span class="bar">Gemerkt</span></h1><p>${items.length ? `${items.length} gespeicherte Meldungen, nur auf diesem Gerät.` : "Noch nichts gemerkt."}</p></div>
-${items.length ? `<div class="list">${items.map((it) => card(itemsById.get(it.id) || it)).join("")}</div>` : `<div class="empty">Tippe bei einer Meldung auf Merken. Sie bleibt hier, auch wenn sie aus den News verschwindet.</div>`}`;
+      <div class="page-head"><h1><span class="bar">Gemerkt</span></h1><p>${items.length ? `${items.length} gespeicherte Meldungen, nur auf diesem Gerät.` : "Noch nichts gemerkt."}</p></div>
+      ${items.length ? `<div class="rows two">${items.map((it) => rowHtml(itemsById.get(it.id) || it)).join("")}</div>` : `<div class="empty">Tippe bei einer Meldung auf Merken. Sie bleibt hier, auch wenn sie aus den News verschwindet.</div>`}`;
   }
 
   function viewIdeen() {
@@ -266,9 +429,14 @@ ${items.length ? `<div class="list">${items.map((it) => card(itemsById.get(it.id
       const it = idea.item;
       return `
 <article class="card idea${idea.done ? " done" : ""}" data-id="${esc(it.id)}">
-  <h2 class="title">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}</h2>
-  <p class="meta"><span>${esc(it.source || "Eigene Idee")}</span>${it.publishedAt ? `<span>·</span><time>${esc(dateOnly(it.publishedAt))}</time>` : ""}<span>·</span><span>notiert ${esc(timeAgo(idea.createdAt))}</span></p>
-  ${it.ai?.hook ? `<p class="hook"><span class="bar">Hook</span> ${esc(it.ai.hook)}</p>` : ""}
+  <div class="idea-grid">
+    <div>
+      <h2 class="title">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}</h2>
+      <p class="meta"><span>${esc(it.source || "Eigene Idee")}</span>${it.publishedAt ? `<span>·</span><time>${esc(dateOnly(it.publishedAt))}</time>` : ""}<span>·</span><span>notiert ${esc(timeAgo(idea.createdAt))}</span></p>
+    </div>
+    ${it.image ? imgHtml(it, "square") : ""}
+  </div>
+  ${hookHtml(it)}
   <textarea data-action="note" placeholder="Notiz: Format, Hook, Dreh-Idee, Kunde …" aria-label="Notiz">${esc(idea.note || "")}</textarea>
   <div class="actions">
     <button class="pill" data-action="idea-done" aria-pressed="${idea.done}">${idea.done ? "Gedreht" : "Gedreht?"}</button>
@@ -278,76 +446,69 @@ ${items.length ? `<div class="list">${items.map((it) => card(itemsById.get(it.id
 </article>`;
     };
     return `
-<div class="view-head"><h1>Deine <span class="bar">Videoideen</span></h1><p>${ideas.length ? `${open.length} offen, ${done.length} gedreht.` : "Noch keine Ideen. Tippe bei einer Meldung auf Videoidee."}</p></div>
-<div class="actions" style="margin-bottom:18px">
-  <button class="pill primary" data-action="export-copy"${ideas.length ? "" : " disabled"}>Als Markdown kopieren</button>
-  <button class="pill" data-action="export-file"${ideas.length ? "" : " disabled"}>Markdown-Datei</button>
-</div>
-<form class="card new-idea" id="new-idea" style="margin-bottom:18px">
-  <input name="title" type="text" placeholder="Eigene Idee festhalten …" aria-label="Eigene Idee" autocomplete="off">
-  <div class="actions"><button class="pill" type="submit">Hinzufügen</button></div>
-</form>
-${open.length ? `<div class="list">${open.map(ideaCard).join("")}</div>` : ""}
-${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.map(ideaCard).join("")}</div>` : ""}
-<p class="note">Export für Obsidian: Markdown kopieren und in eine Notiz einfügen, oder die Datei direkt in den Vault legen.</p>`;
+      <div class="page-head"><h1>Deine <span class="bar">Videoideen</span></h1><p>${ideas.length ? `${open.length} offen, ${done.length} gedreht.` : "Noch keine Ideen. Tippe bei einer Meldung auf Videoidee."}</p></div>
+      <div class="actions" style="margin:0 0 18px">
+        <button class="pill primary" data-action="export-copy"${ideas.length ? "" : " disabled"}>Als Markdown kopieren</button>
+        <button class="pill" data-action="export-file"${ideas.length ? "" : " disabled"}>Markdown-Datei</button>
+      </div>
+      <form class="card new-idea" id="new-idea" style="margin-bottom:18px">
+        <input name="title" type="text" placeholder="Eigene Idee festhalten …" aria-label="Eigene Idee" autocomplete="off">
+        <div class="actions" style="margin:0"><button class="pill" type="submit">Hinzufügen</button></div>
+      </form>
+      ${open.length ? `<div class="list">${open.map(ideaCard).join("")}</div>` : ""}
+      ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.map(ideaCard).join("")}</div>` : ""}
+      <p class="note">Export für Obsidian: Markdown kopieren und in eine Notiz einfügen, oder die Datei direkt in den Vault legen.</p>`;
   }
 
   function render() {
-    const tab = currentTab();
-    document.querySelectorAll(".tabs a").forEach((a) => {
-      if (a.dataset.tab === tab) a.setAttribute("aria-current", "page");
-      else a.removeAttribute("aria-current");
-    });
-    const views = { heute: viewHeute, alle: viewAlle, gemerkt: viewGemerkt, ideen: viewIdeen };
+    const route = currentRoute();
+    const key = route.view + (route.id || "");
     const scrollY = window.scrollY;
-    $main.innerHTML = views[tab]();
-    if (render.lastTab === tab) window.scrollTo(0, scrollY);
+    let html = "";
+    if (route.view === "start") html = viewStart();
+    else if (route.view === "ressort") html = viewRessort(route.id);
+    else if (route.view === "neueste") html = viewNeueste();
+    else if (route.view === "gemerkt") html = viewGemerkt();
+    else html = viewIdeen();
+    $main.innerHTML = html;
+    if (render.lastKey === key) window.scrollTo(0, scrollY);
     else window.scrollTo(0, 0);
-    render.lastTab = tab;
-    document.title = tab === "heute" ? "News-Hub" : `${{ alle: "Alle", gemerkt: "Gemerkt", ideen: "Ideen" }[tab]} · News-Hub`;
+    render.lastKey = key;
+    renderNav();
+    const titles = { start: "News-Hub", neueste: "Neueste · News-Hub", gemerkt: "Gemerkt · News-Hub", ideen: "Ideen · News-Hub", ressort: `${catLabel(route.id)} · News-Hub` };
+    document.title = titles[route.view];
   }
 
-  // Nur eine Karte neu zeichnen, damit Scrollposition und Fokus bleiben
-  function rerenderCard(id) {
-    const el = $main.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  // Nur die Schaltflächen eines Artikels aktualisieren, Bilder und Scrollposition bleiben
+  function refreshItem(id) {
     const it = itemsById.get(id) || state.saved[id] || state.ideas[id]?.item;
-    if (!el || !it || el.classList.contains("idea")) return render();
-    const top = el.classList.contains("top");
-    const compact = el.classList.contains("compact");
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = card(it, { top, compact });
-    el.replaceWith(wrapper.firstElementChild);
+    if (!it) return render();
+    const els = $main.querySelectorAll(`[data-id="${CSS.escape(id)}"]`);
+    if (!els.length) return render();
+    els.forEach((el) => {
+      if (el.classList.contains("idea")) return;
+      const actions = el.querySelector(".actions");
+      if (actions) actions.outerHTML = pillsHtml(it);
+      const mini = el.querySelector(".mini");
+      if (mini) mini.outerHTML = miniHtml(it, { withUsed: mini.querySelectorAll("button").length > 2 });
+      el.classList.toggle("done", isUsed(it));
+    });
   }
 
   // ---------- Aktionen ----------
   function toggleSave(it) {
-    if (state.saved[it.id]) {
-      delete state.saved[it.id];
-      toast("Aus Merkliste entfernt");
-    } else {
-      state.saved[it.id] = snapshot(it);
-      toast("Gemerkt");
-    }
+    if (state.saved[it.id]) { delete state.saved[it.id]; toast("Aus Merkliste entfernt"); }
+    else { state.saved[it.id] = snapshot(it); toast("Gemerkt"); }
     saveState();
   }
   function toggleIdea(it) {
-    if (state.ideas[it.id]) {
-      delete state.ideas[it.id];
-      toast("Aus Ideen entfernt");
-    } else {
-      state.ideas[it.id] = { item: snapshot(it), note: "", done: false, createdAt: new Date().toISOString() };
-      toast("In Ideenliste");
-    }
+    if (state.ideas[it.id]) { delete state.ideas[it.id]; toast("Aus Ideen entfernt"); }
+    else { state.ideas[it.id] = { item: snapshot(it), note: "", done: false, createdAt: new Date().toISOString() }; toast("In Ideenliste"); }
     saveState();
   }
   function toggleUsed(it) {
-    if (state.used[it.id]) {
-      delete state.used[it.id];
-      toast("Wieder offen");
-    } else {
-      state.used[it.id] = new Date().toISOString();
-      toast("Als erledigt markiert");
-    }
+    if (state.used[it.id]) { delete state.used[it.id]; toast("Wieder offen"); }
+    else { state.used[it.id] = new Date().toISOString(); toast("Als erledigt markiert"); }
     saveState();
   }
 
@@ -382,7 +543,6 @@ ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.
       await navigator.clipboard.writeText(text);
       toast("Markdown kopiert");
     } catch {
-      // Rückfall: Textfeld markieren
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);
@@ -419,13 +579,13 @@ ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
-    const cardEl = btn.closest("[data-id]");
-    const id = cardEl?.dataset.id;
+    const id = btn.closest("[data-id]")?.dataset.id;
     const it = id ? itemsById.get(id) || state.saved[id] || state.ideas[id]?.item : null;
+    const route = currentRoute();
 
-    if (action === "save" && it) { toggleSave(it); rerenderCard(id); if (currentTab() === "gemerkt" && !state.saved[id]) render(); }
-    else if (action === "idea" && it) { toggleIdea(it); rerenderCard(id); }
-    else if (action === "used" && it) { toggleUsed(it); rerenderCard(id); }
+    if (action === "save" && it) { toggleSave(it); if (route.view === "gemerkt") render(); else refreshItem(id); }
+    else if (action === "idea" && it) { toggleIdea(it); refreshItem(id); }
+    else if (action === "used" && it) { toggleUsed(it); refreshItem(id); }
     else if (action === "toggle-done") { state.showDone = !state.showDone; saveState(); render(); }
     else if (action === "more") { visibleCount += PAGE_SIZE; render(); }
     else if (action === "export-copy") exportCopy();
@@ -441,7 +601,6 @@ ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.
     visibleCount = PAGE_SIZE;
     saveState();
     render();
-    document.getElementById("search")?.blur();
   });
 
   let searchTimer = null;
@@ -479,20 +638,18 @@ ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.
     const title = input.value.trim();
     if (!title) return;
     const id = `own-${Date.now().toString(36)}`;
-    state.ideas[id] = { item: { id, title, source: "", url: "", category: "", publishedAt: null, ai: null }, note: "", done: false, createdAt: new Date().toISOString() };
+    state.ideas[id] = { item: { id, title, source: "", url: "", category: "", publishedAt: null, ai: null, image: null }, note: "", done: false, createdAt: new Date().toISOString() };
     saveState();
     render();
     toast("Idee hinzugefügt");
   });
 
-  // Enter im Suchfeld schließt die Tastatur
   $main.addEventListener("keydown", (e) => {
     if (e.target.id === "search" && e.key === "Enter") e.target.blur();
   });
 
   window.addEventListener("hashchange", () => { visibleCount = PAGE_SIZE; render(); });
 
-  // Letzten Besuch merken (für „Neu seit deinem letzten Besuch“), Daten beim Zurückkommen auffrischen
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       state.lastVisit = new Date().toISOString();
@@ -514,6 +671,7 @@ ${done.length ? `<h2 class="section-title">Gedreht</h2><div class="list">${done.
     });
   }
 
+  renderStatus();
   render();
   loadData();
 })();

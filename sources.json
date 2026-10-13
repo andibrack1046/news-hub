@@ -32,7 +32,7 @@
     { "id": "verge-ai", "name": "The Verge AI", "type": "rss", "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", "category": "ki", "weight": 1.0, "lang": "en" },
     { "id": "techcrunch-ai", "name": "TechCrunch AI", "type": "rss", "url": "https://techcrunch.com/category/artificial-intelligence/feed/", "category": "ki", "weight": 0.9, "lang": "en" },
     { "id": "gnews-anthropic", "name": "Google News", "type": "googlenews", "query": "Anthropic Claude", "category": "ki", "weight": 1.2, "lang": "en", "max": 10 },
-    { "id": "gnews-ki-video", "name": "Google News", "type": "googlenews", "query": "Higgsfield OR Runway OR Kling OR \"Google Veo\" OR Sora video", "category": "ki", "weight": 1.2, "lang": "en" },
+    { "id": "gnews-ki-video", "name": "Google News", "type": "googlenews", "query": "Higgsfield OR \"Runway ML\" OR \"Runway AI\" OR \"Kling AI\" OR \"Google Veo\" OR \"OpenAI Sora\"", "category": "ki", "weight": 1.2, "lang": "en" },
     { "id": "gnews-ki-video-de", "name": "Google News", "type": "googlenews", "query": "CapCut OR \"KI-Video\" OR \"KI Videos\"", "category": "ki", "weight": 1.1, "lang": "de", "days": 3 },
     { "id": "hn-ai-video", "name": "Hacker News", "type": "hn", "query": "AI video", "minPoints": 30, "category": "ki", "weight": 0.9, "lang": "en" },
     { "id": "hn-front", "name": "Hacker News", "type": "hn", "frontPage": true, "minPoints": 150, "category": "ki", "weight": 0.8, "lang": "en", "classify": true, "onlyMatching": true },
@@ -57,7 +57,7 @@
     { "id": "gnews-meta-ads-en", "name": "Google News", "type": "googlenews", "query": "\"Meta Ads\" OR \"Facebook Ads\"", "category": "marketing", "weight": 0.9, "lang": "en", "days": 3, "max": 10 },
     { "id": "gnews-leads-de", "name": "Google News", "type": "googlenews", "query": "Leadgenerierung OR Kundengewinnung OR \"lokales Marketing\"", "category": "marketing", "weight": 1.0, "lang": "de", "days": 5 },
 
-    { "id": "gtrends-de", "name": "Google Trends", "type": "gtrends", "url": "https://trends.google.com/trending/rss?geo=DE", "category": "trends", "weight": 1.1, "lang": "de" },
+    { "id": "gtrends-de", "name": "Google Trends", "type": "gtrends", "url": "https://trends.google.com/trending/rss?geo=DE", "category": "trends", "weight": 0.8, "lang": "de", "max": 15 },
     { "id": "knowyourmeme", "name": "Know Your Meme", "type": "rss", "url": "https://knowyourmeme.com/newsfeed.rss", "category": "trends", "weight": 0.9, "lang": "en" },
     { "id": "gnews-viral", "name": "Google News", "type": "googlenews", "query": "viral TikTok Trend OR Meme", "category": "trends", "weight": 1.0, "lang": "de", "days": 3 },
 

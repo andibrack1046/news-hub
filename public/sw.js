@@ -1,5 +1,5 @@
 // Service Worker: App-Hülle offline, Daten netz-zuerst mit Rückfall auf den letzten Stand.
-const VERSION = "newshub-v1";
+const VERSION = "newshub-v2";
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-180.png"];
 
 self.addEventListener("install", (event) => {

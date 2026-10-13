@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { parseFeed } from "./lib/feed.mjs";
 import { classify, matchesAny, HOT_WORDS, CATEGORY_KEYWORDS } from "./lib/classify.mjs";
+import { googleNewsId, resolveGoogleNewsUrl, loadCache, saveCache } from "./lib/gnews.mjs";
 import {
   cleanText, truncate, normalizeUrl, normalizeTitle, titleTokens, jaccard, sharedTokens,
   shortHash, detectLang,
@@ -96,6 +97,7 @@ async function fetchSource(source, limits) {
       date: it.date,
       summary: it.description,
       sourceName: source.name,
+      image: it.image,
     }));
   }
 
@@ -130,6 +132,8 @@ async function fetchSource(source, limits) {
       lang: source.type === "googlenews" || source.classify ? detectLang(haystack) : source.lang || detectLang(haystack),
       publishedAt,
       summary,
+      image: r.image || null,
+      gnewsId: source.type === "googlenews" ? googleNewsId(r.url) : null,
       weight: source.weight ?? 1,
     });
   }
@@ -181,6 +185,123 @@ function clusterItems(items) {
   return groups;
 }
 
+// Google-News-Weiterleitungen in echte Artikel-URLs auflösen (mit Cache, begrenzt pro Lauf)
+const GNEWS_CACHE_FILE = path.join(ROOT, "public", "data", "gnews-cache.json");
+const GNEWS_RESOLVE_MAX = 60;
+
+async function resolveGoogleNews(results) {
+  const cache = await loadCache(GNEWS_CACHE_FILE);
+  const pending = [];
+  let fromCache = 0;
+  for (const r of results) {
+    for (const e of r.entries) {
+      if (!e.gnewsId) continue;
+      const hit = cache[e.gnewsId];
+      if (hit?.url) {
+        applyResolved(e, hit.url);
+        fromCache++;
+      } else if (!hit?.failedAt || Date.now() - new Date(hit.failedAt).getTime() > 86400000) {
+        pending.push(e);
+      }
+    }
+  }
+  const todo = pending.slice(0, GNEWS_RESOLVE_MAX);
+  let ok = 0;
+  await runPool(
+    todo.map((e) => async () => {
+      try {
+        const url = await resolveGoogleNewsUrl(e.gnewsId);
+        cache[e.gnewsId] = { url, at: new Date().toISOString() };
+        applyResolved(e, url);
+        ok++;
+      } catch (err) {
+        cache[e.gnewsId] = { failedAt: new Date().toISOString(), at: new Date().toISOString(), error: String(err.message || err).slice(0, 80) };
+      }
+    }),
+    4
+  );
+  await saveCache(GNEWS_CACHE_FILE, cache);
+  log(`Google News: ${fromCache} Links aus dem Cache, ${ok} von ${todo.length} neu aufgelöst, ${Math.max(0, pending.length - todo.length)} warten auf den nächsten Lauf`);
+}
+
+function applyResolved(entry, url) {
+  const clean = normalizeUrl(url);
+  entry.url = clean;
+  entry.id = shortHash(clean);
+  try {
+    entry.sourceHost = new URL(clean).hostname.replace(/^www\./, "");
+  } catch {}
+}
+
+// Für Meldungen ohne Feed-Bild: Vorschaubild (og:image) der Artikelseite holen.
+// Nur für die bestbewerteten, nur einmal pro Meldung (imageChecked), Google-News-Weiterleitungen ausgenommen.
+const OG_IMAGE_MAX = 80;
+const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+async function fetchOgImage(url) {
+  const res = await fetch(url, {
+    headers: { "user-agent": BROWSER_UA, accept: "text/html,*/*;q=0.8", "accept-language": "de-DE,de;q=0.9,en;q=0.8" },
+    signal: AbortSignal.timeout(8000),
+    redirect: "follow",
+  });
+  if (!res.ok || !/text\/html/i.test(res.headers.get("content-type") || "")) return null;
+  // Nur den Kopf der Seite lesen, die Meta-Tags stehen vorn
+  const reader = res.body.getReader();
+  const chunks = [];
+  let size = 0;
+  while (size < 200000) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.length;
+    if (Buffer.concat(chunks).toString("utf8").includes("</head>")) break;
+  }
+  reader.cancel().catch(() => {});
+  const html = Buffer.concat(chunks).toString("utf8");
+  const m =
+    html.match(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i) ||
+    html.match(/<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']/i);
+  if (!m) return null;
+  try {
+    const abs = new URL(decodeEntitiesSimple(m[1]), res.url || url).toString();
+    return /^https?:\/\//i.test(abs) ? abs : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodeEntitiesSimple(s) {
+  return s.replace(/&amp;/g, "&").replace(/&#x2F;/gi, "/").replace(/&quot;/g, '"');
+}
+
+async function enrichImages(items, concurrency) {
+  const todo = items
+    .filter((it) => !it.image && !it.imageChecked && it.lead !== false && !/news\.google\.com/.test(it.url))
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, OG_IMAGE_MAX);
+  if (!todo.length) return 0;
+  let found = 0;
+  await runPool(
+    todo.map((it) => async () => {
+      try {
+        const img = await fetchOgImage(it.url);
+        if (img) {
+          it.image = img;
+          found++;
+        }
+      } catch {
+        // kein Bild, kein Drama
+      }
+      it.imageChecked = true;
+    }),
+    concurrency
+  );
+  log(`Vorschaubilder: ${found} von ${todo.length} Artikelseiten geliefert`);
+  return found;
+}
+
 async function main() {
   const config = await loadJson(SOURCES_FILE, null);
   if (!config) throw new Error(`sources.json nicht lesbar: ${SOURCES_FILE}`);
@@ -204,6 +325,12 @@ async function main() {
     limits.concurrency
   );
 
+  try {
+    await resolveGoogleNews(results);
+  } catch (err) {
+    log(`Google-News-Auflösung übersprungen: ${err.message}`);
+  }
+
   // Zusammenführen mit dem letzten Stand, damit Einträge nicht verschwinden, wenn ein Feed ausfällt
   const nowIso = now.toISOString();
   const merged = new Map();
@@ -222,7 +349,13 @@ async function main() {
         return;
       }
     }
-    const full = { ...item, firstSeenAt, ai: prev?.ai || item.ai || null };
+    const full = {
+      ...item,
+      firstSeenAt,
+      ai: prev?.ai || item.ai || null,
+      image: item.image || prev?.image || null,
+      imageChecked: Boolean(prev?.imageChecked || item.imageChecked),
+    };
     merged.set(full.id, full);
     seenTitles.set(titleKey, full);
   };
@@ -252,6 +385,8 @@ async function main() {
   }
   items.sort((a, b) => new Date(b.publishedAt || b.firstSeenAt) - new Date(a.publishedAt || a.firstSeenAt));
   items = items.slice(0, limits.maxItemsTotal);
+
+  await enrichImages(items, Math.max(limits.concurrency, 8));
 
   const perCategory = Object.fromEntries(config.categories.map((c) => [c.id, 0]));
   for (const it of items) perCategory[it.category] = (perCategory[it.category] || 0) + 1;

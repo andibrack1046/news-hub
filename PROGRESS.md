@@ -45,3 +45,14 @@ Kurzprotokoll pro Etappe. Details und Bedienung stehen in der README.
 - Workflow-YAML validiert (ruby yaml), Tests laufen auch im Workflow.
 - Übergabe geschrieben: `~/Obsidian/Mein Leben/2026-10-13 Übergabe News-Hub.md`.
 - Nicht geprüft, weil nicht möglich: echter GitHub-Lauf, KI-Schritt mit Key, Installation auf dem iPhone.
+
+## Umbau auf Zeitungslayout (13.10.2026, abends)
+Andis Rückmeldung: Kartenliste gibt keinen Überblick, soll aussehen wie ein echter News-Hub mit Bildern.
+- Bilder: `scripts/lib/feed.mjs` zieht `media:content`, `media:thumbnail`, `enclosure`, `itunes:image` oder das erste `<img>` aus dem Feed. Für Meldungen ohne Feed-Bild holt `fetch.mjs` das `og:image` der Artikelseite (max. 80 pro Lauf, nur Kopf der Seite, einmal pro Meldung, Merker `imageChecked`).
+- Google News: Weiterleitungs-URLs werden über Googles `batchexecute` in echte Artikel-URLs aufgelöst (`scripts/lib/gnews.mjs`, Cache `public/data/gnews-cache.json`, max. 60 neue pro Lauf). Dadurch echte Links, Dubletten mit Direkt-Feeds werden erkannt, und die Artikel bekommen Bilder. Lauf dauert jetzt ca. 15 s statt 3 s.
+- Start: Aufmacher (großes Bild, Kicker im Weinrot-Balken, Headline, Teaser), Top-Themen-Raster (6 Kacheln mit Bild), pro Ressort ein Block mit Bild-Aufmacher und 4 Kurzmeldungen mit Thumbnails, Ticker (Desktop: rechte Spalte, fest; mobil: unten). Max. 2 pro Ressort und 2 pro Quelle oben, Aufmacher bevorzugt mit Bild.
+- Kopf wie eine Zeitung: Wortmarke, Datum und Stand, Ressortleiste mit Unterstreichung (Start, 6 Ressorts, Neueste, Gemerkt, Ideen). Unten mobil weiter die vier Tabs.
+- Ressortseiten (`#ressort/<id>`): Aufmacher plus Liste, zweispaltig ab 1060 px. Neueste: Suche, Pillen-Filter, Liste mit Thumbnails. Merken/Videoidee/Erledigt als Pillen bei Aufmachern, als kleine Textschaltflächen in Listen.
+- Platzhalter ohne Bild: dunkle Fläche mit Quellenname (Kacheln); in Listen entfällt das Thumbnail.
+- Suchen nachgeschärft: „Runway“ fand Flughafen-Landebahnen, jetzt „Runway ML/AI“; Google Trends mit weniger Gewicht, Ticker höchstens 2 Einträge pro Quelle.
+- Service-Worker-Cache auf v2, damit alle Geräte die neue Oberfläche bekommen.
