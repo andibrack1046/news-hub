@@ -231,7 +231,7 @@
 <div class="view-head"><h1>Was heute <span class="bar">zählt</span></h1><p>${esc(sub)}</p></div>
 ${top.length ? `<div class="list single">${top.map((it) => card(it, { top: true })).join("")}</div>` : `<div class="empty">Gerade nichts Heißes. Schau unter Alle nach.</div>`}
 ${extra ? `<h2 class="section-title" style="margin-top:34px">Außerdem</h2>${extra}` : ""}
-<p class="note">${data.generatedAt ? `Zuletzt aktualisiert ${esc(fullDate(data.generatedAt))}. ` : ""}${failed.length ? `<b>Gestört:</b> ${esc(failed.join(", "))}. ` : ""}Aktualisierung alle drei Stunden über GitHub Actions.</p>`;
+<p class="note">${data.generatedAt ? `Zuletzt aktualisiert ${esc(fullDate(data.generatedAt))}. ` : ""}${failed.length ? `<b>Gestört:</b> ${esc(failed.join(", "))}. ` : ""}${data.ai?.lastRunAt ? `KI-Texte zuletzt ${esc(timeAgo(data.ai.lastRunAt))} (${data.ai.summarized} Meldungen). ` : ""}Aktualisierung alle drei Stunden über GitHub Actions.</p>`;
   }
 
   function viewAlle() {

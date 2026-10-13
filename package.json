@@ -4,12 +4,17 @@
   "private": true,
   "description": "Persönlicher News-Hub: Feeds einsammeln, Videoideen daraus machen. PWA auf GitHub Pages.",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "fetch": "node scripts/fetch.mjs",
     "summarize": "node scripts/summarize.mjs",
     "update": "node scripts/fetch.mjs && node scripts/summarize.mjs",
     "serve": "node scripts/serve.mjs",
     "test": "node --test scripts/test/*.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0"
   }
 }

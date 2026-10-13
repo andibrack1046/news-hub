@@ -64,4 +64,45 @@ Schlagwortlisten für die Klassifizierung stehen in `scripts/lib/classify.mjs`.
 }
 ```
 
-`lead: true` ist die führende Meldung eines Bündels ähnlicher Schlagzeilen, `related` die Zahl der weiteren. `ai` wird in Etappe 5 optional mit Zusammenfassung und Hook gefüllt.
+`lead: true` ist die führende Meldung eines Bündels ähnlicher Schlagzeilen, `related` die Zahl der weiteren. `ai` ist `null` oder `{ summary, hook, model, at }`.
+
+## Veröffentlichung: GitHub Pages + Actions
+
+Der Workflow `.github/workflows/update.yml` läuft alle drei Stunden, bei jedem Push auf `main` und von Hand (Tab Actions → Run workflow):
+
+1. Feeds abrufen (`scripts/fetch.mjs`)
+2. optional KI-Texte (`scripts/summarize.mjs`, nur wenn das Secret `ANTHROPIC_API_KEY` existiert)
+3. `public/data/news.json` ins Repo committen (Bot-Commit „Daten: …“)
+4. `public/` als GitHub-Pages-Seite veröffentlichen
+
+Einmalige Einrichtung mit Klickschritten: siehe `SETUP-GITHUB.md`. Wichtig: Settings → Pages → Source auf **GitHub Actions**.
+
+Adresse danach: `https://DEIN-NAME.github.io/news-hub/`. Die App nutzt nur relative Pfade und läuft deshalb in jedem Unterordner.
+
+## KI-Zusammenfassungen (optional)
+
+`scripts/summarize.mjs` schickt die wichtigsten neuen Meldungen (ohne `ai`, führend im Bündel, jünger als 48 Std., nach `score`) in Paketen zu 8 an Claude und bekommt pro Meldung einen Satz Zusammenfassung und einen Reel-Hook auf Deutsch zurück (strukturierte JSON-Ausgabe). Ohne Key wird der Schritt übersprungen, die App läuft unverändert.
+
+Kostendeckel:
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `ANTHROPIC_API_KEY` (Secret) | leer | ohne Key kein KI-Schritt |
+| `AI_MAX_ITEMS` (Variable) | 40 | Meldungen pro Lauf |
+| `AI_MAX_REQUESTS` | 8 | Anfragen pro Lauf (8 × 8 = 64 Meldungen Obergrenze) |
+| `AI_MODEL` (Variable) | `claude-haiku-5-5` | günstiges Modell; `claude-sonnet-5-5` für bessere Hooks |
+
+Kostenschätzung mit Haiku 5.5 (0,10 USD je Mio. Input-Token, 0,50 USD je Mio. Output-Token): pro Meldung ca. 150 Token Input und 80 Token Output, plus ca. 400 Token Systemprompt je Anfrage (gecacht). 40 Meldungen pro Lauf ≈ 9.000 Input- + 3.200 Output-Token ≈ **0,003 USD pro Lauf**. Bei 8 Läufen am Tag, meist mit weniger neuen Meldungen: **unter 1 USD im Monat**. Mit Sonnet 5.5 etwa das 20-fache, also rund 10 bis 15 USD im Monat. Die tatsächlichen Token stehen nach jedem Lauf im Actions-Log und in `news.json` unter `ai.estimatedCostUsd`.
+
+Lokal testen: `ANTHROPIC_API_KEY=sk-… npm run summarize` (nach `npm install` und `npm run fetch`).
+
+## Offline, Cache, Aktualität
+
+- Service Worker (`public/sw.js`): App-Dateien kommen aus dem Cache und werden im Hintergrund erneuert, `news.json` wird zuerst vom Netz geholt, bei Ausfall vom letzten Stand. Neue App-Version: beim zweiten Öffnen aktiv.
+- Kopfzeile zeigt „Stand vor 2 Std.“ (Zeitpunkt des letzten Workflow-Laufs) und ob Quellen gestört sind.
+- Beim Zurückkehren zur App (nach über einer Minute) werden die Daten neu geladen.
+- Gemerktes, Ideen, Notizen und Erledigt-Markierungen liegen nur im Browser dieses Geräts (`localStorage`). Kein Login, keine Synchronisation. Export der Ideen als Markdown für Obsidian.
+
+## Auf iPhone und Mac installieren
+
+Siehe `SETUP-GITHUB.md`, Abschnitt 6: in Safari öffnen → Teilen → „Zum Home-Bildschirm“.

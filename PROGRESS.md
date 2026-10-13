@@ -23,3 +23,14 @@ Kurzprotokoll pro Etappe. Details und Bedienung stehen in der README.
 - Zustand in `localStorage` (`newshub.v1`): Merkliste und Ideen als Kopien der Meldung (bleiben nach 7 Tagen erhalten), Erledigt-Markierungen, Filter, letzter Besuch.
 - Ideenliste mit Notizfeld (speichert beim Tippen), „Gedreht“, Entfernen, eigene Idee ohne Meldung anlegen.
 - Export: „Als Markdown kopieren“ (Zwischenablage) und „Markdown-Datei“ (iOS: Teilen-Dialog, sonst Download `JJJJ-MM-TT Videoideen News-Hub.md`). Format: eine `##`-Überschrift pro Idee mit Status, Quelle, Link, Kategorie, Hook, Notiz.
+
+## Etappe 3: GitHub Pages + Actions (13.10.2026, vorbereitet)
+- `.github/workflows/update.yml`: Zeitplan alle 3 Std. (Minute 17), `workflow_dispatch`, Push auf main. Schritte: npm ci, fetch, optional summarize (nur wenn Secret vorhanden), Datenstand committen, `upload-pages-artifact` + `deploy-pages`.
+- Auf diesem Mac gibt es weder `gh` noch gespeicherte GitHub-Zugangsdaten, deshalb konnte ich das Repo nicht selbst anlegen. Alle Klickschritte stehen in `SETUP-GITHUB.md` (Repo anlegen, Push mit Token, Pages-Source auf „GitHub Actions“, Workflow starten, Secret setzen, iPhone-Installation).
+- Offen: erster echter Lauf auf GitHub, danach URL in die Übergabe eintragen.
+
+## Etappe 5: KI-Zusammenfassung und Hooks (13.10.2026)
+- `scripts/summarize.mjs` mit `@anthropic-ai/sdk` (einzige Abhängigkeit), Modell `claude-haiku-5-5`, strukturierte JSON-Ausgabe, Effort low, Systemprompt gecacht.
+- Deckel: `AI_MAX_ITEMS` (40), `AI_MAX_REQUESTS` (8), nur Leads jünger als 48 Std. ohne vorhandenen KI-Text. Kostenschätzung in README (unter 1 USD/Monat mit Haiku).
+- Fehler brechen die Veröffentlichung nie ab (Exit 0, Log). Ohne Key: Schritt übersprungen, getestet. Mit Key noch nicht live getestet (kein Key auf diesem Mac), das muss der erste GitHub-Lauf zeigen.
+- Oberfläche zeigt `ai.summary` und `ai.hook` (mit Balken „Hook“) auf der Karte und in der Ideenliste; Hook landet im Markdown-Export.
