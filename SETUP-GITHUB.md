@@ -1,6 +1,6 @@
 # GitHub einrichten: Klickschritte
 
-Das Repo ist lokal fertig und committet. Für die Veröffentlichung fehlen nur dein GitHub-Login und ein paar Klicks. Dauer: etwa 10 Minuten.
+**Stand 13.10.2026: alles erledigt.** Repo https://github.com/andibrack1046/news-hub, App https://andibrack1046.github.io/news-hub/, Pages-Source „GitHub Actions“, Workflow-Rechte „Read and write“, erster Lauf grün. `gh` liegt in `~/Developer/bin/gh` und ist mit dem Konto andibrack1046 angemeldet. Die Schritte unten bleiben als Nachschlagewerk, falls das Repo mal neu aufgesetzt werden muss. Offen ist nur Abschnitt 5 (optionaler KI-Key) und 6 (iPhone).
 
 ## 1. Leeres Repository auf GitHub anlegen
 

@@ -75,9 +75,9 @@ Der Workflow `.github/workflows/update.yml` läuft alle drei Stunden, bei jedem 
 3. `public/data/news.json` ins Repo committen (Bot-Commit „Daten: …“)
 4. `public/` als GitHub-Pages-Seite veröffentlichen
 
-Einmalige Einrichtung mit Klickschritten: siehe `SETUP-GITHUB.md`. Wichtig: Settings → Pages → Source auf **GitHub Actions**.
+Live: **https://andibrack1046.github.io/news-hub/** (Repo https://github.com/andibrack1046/news-hub). Einrichtung ist erledigt, die Klickschritte in `SETUP-GITHUB.md` dienen als Nachschlagewerk. Wichtig bei einem Neuaufbau: Settings → Pages → Source auf **GitHub Actions**, Workflow-Rechte auf „Read and write“.
 
-Adresse danach: `https://DEIN-NAME.github.io/news-hub/`. Die App nutzt nur relative Pfade und läuft deshalb in jedem Unterordner.
+Die App nutzt nur relative Pfade und läuft deshalb in jedem Unterordner.
 
 ## KI-Zusammenfassungen (optional)
 

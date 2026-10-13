@@ -26,8 +26,9 @@ Kurzprotokoll pro Etappe. Details und Bedienung stehen in der README.
 
 ## Etappe 3: GitHub Pages + Actions (13.10.2026, vorbereitet)
 - `.github/workflows/update.yml`: Zeitplan alle 3 Std. (Minute 17), `workflow_dispatch`, Push auf main. Schritte: npm ci, fetch, optional summarize (nur wenn Secret vorhanden), Datenstand committen, `upload-pages-artifact` + `deploy-pages`.
-- Auf diesem Mac gibt es weder `gh` noch gespeicherte GitHub-Zugangsdaten, deshalb konnte ich das Repo nicht selbst anlegen. Alle Klickschritte stehen in `SETUP-GITHUB.md` (Repo anlegen, Push mit Token, Pages-Source auf „GitHub Actions“, Workflow starten, Secret setzen, iPhone-Installation).
-- Offen: erster echter Lauf auf GitHub, danach URL in die Übergabe eintragen.
+- Abends erledigt: `gh` 2.102.0 nach `~/Developer/bin` installiert (Prüfsumme geprüft), per Gerätecode mit Andis Konto verbunden (Scopes repo, workflow). Repo `andibrack1046/news-hub` angelegt, Workflow-Rechte auf write, Pages auf `build_type=workflow`, Push.
+- Erster Lauf scheiterte sofort: `secrets`-Kontext ist in `steps[].if` nicht erlaubt. Fix: Secret als Job-`env`, Prüfung über `env.ANTHROPIC_API_KEY`. Zweiter Lauf grün: 46/46 Quellen, 488 Meldungen, Bot-Commit „Daten: …“, Seite live unter https://andibrack1046.github.io/news-hub/ (index, sw.js, manifest, news.json alle 200; 8 Karten in der Heute-Ansicht).
+- Klickschritte in `SETUP-GITHUB.md` bleiben als Nachschlagewerk.
 
 ## Etappe 5: KI-Zusammenfassung und Hooks (13.10.2026)
 - `scripts/summarize.mjs` mit `@anthropic-ai/sdk` (einzige Abhängigkeit), Modell `claude-haiku-5-5`, strukturierte JSON-Ausgabe, Effort low, Systemprompt gecacht.
