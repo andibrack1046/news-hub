@@ -1,0 +1,71 @@
+{
+  "_hinweis": "Quellen des News-Hubs. Neue Quelle = neuer Eintrag in 'sources'. Felder: id (eindeutig), name, type (rss | googlenews | hn | gtrends), url oder query, category (Standard-Kategorie: social, ki, video, marketing, trends, region), weight (Gewicht für die Heute-Ansicht, 1.0 = normal), classify (true = Kategorie per Schlagwort bestimmen), onlyMatching (true = nur Meldungen behalten, die zu einer Kategorie passen), keywords (nur Meldungen behalten, die eins dieser Wörter enthalten), days (googlenews: Zeitraum in Tagen, Standard 2), max (max. Meldungen pro Lauf), lang (de | en), enabled (false = aus).",
+  "categories": [
+    { "id": "social", "label": "Social Media" },
+    { "id": "ki", "label": "KI für Creator" },
+    { "id": "video", "label": "Video und Gear" },
+    { "id": "marketing", "label": "Marketing" },
+    { "id": "trends", "label": "Trends" },
+    { "id": "region", "label": "Region" }
+  ],
+  "limits": {
+    "maxAgeDays": 7,
+    "maxItemsTotal": 700,
+    "maxItemsPerSource": 30,
+    "timeoutMs": 20000,
+    "concurrency": 6
+  },
+  "sources": [
+    { "id": "meta-newsroom", "name": "Meta Newsroom", "type": "rss", "url": "https://about.fb.com/news/feed/", "category": "social", "weight": 1.3, "lang": "en" },
+    { "id": "youtube-blog", "name": "YouTube Blog", "type": "rss", "url": "https://blog.youtube/rss/", "category": "social", "weight": 1.3, "lang": "en" },
+    { "id": "socialmediatoday", "name": "Social Media Today", "type": "rss", "url": "https://www.socialmediatoday.com/feeds/news/", "category": "social", "weight": 1.1, "lang": "en", "classify": true },
+    { "id": "allfacebook", "name": "allfacebook.de", "type": "rss", "url": "https://allfacebook.de/feed", "category": "social", "weight": 1.1, "lang": "de", "classify": true },
+    { "id": "techcrunch-social", "name": "TechCrunch Social", "type": "rss", "url": "https://techcrunch.com/category/social/feed/", "category": "social", "weight": 1.0, "lang": "en" },
+    { "id": "passionfruit", "name": "Passionfruit", "type": "rss", "url": "https://passionfru.it/feed/", "category": "social", "weight": 0.9, "lang": "en" },
+    { "id": "hootsuite", "name": "Hootsuite Blog", "type": "rss", "url": "https://blog.hootsuite.com/feed/", "category": "social", "weight": 0.7, "lang": "en" },
+    { "id": "buffer", "name": "Buffer Blog", "type": "rss", "url": "https://buffer.com/resources/rss/", "category": "social", "weight": 0.7, "lang": "en" },
+    { "id": "gnews-social-de", "name": "Google News", "type": "googlenews", "query": "(Instagram OR TikTok OR YouTube) (Funktion OR Algorithmus OR Update)", "category": "social", "weight": 1.0, "lang": "de" },
+    { "id": "gnews-social-en", "name": "Google News", "type": "googlenews", "query": "(Instagram OR TikTok OR \"YouTube Shorts\") (feature OR algorithm OR creators)", "category": "social", "weight": 0.9, "lang": "en" },
+
+    { "id": "openai", "name": "OpenAI", "type": "rss", "url": "https://openai.com/news/rss.xml", "category": "ki", "weight": 1.2, "lang": "en", "max": 20 },
+    { "id": "google-ai", "name": "Google AI Blog", "type": "rss", "url": "https://blog.google/technology/ai/rss/", "category": "ki", "weight": 1.1, "lang": "en" },
+    { "id": "verge-ai", "name": "The Verge AI", "type": "rss", "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", "category": "ki", "weight": 1.0, "lang": "en" },
+    { "id": "techcrunch-ai", "name": "TechCrunch AI", "type": "rss", "url": "https://techcrunch.com/category/artificial-intelligence/feed/", "category": "ki", "weight": 0.9, "lang": "en" },
+    { "id": "gnews-anthropic", "name": "Google News", "type": "googlenews", "query": "Anthropic Claude", "category": "ki", "weight": 1.2, "lang": "en", "max": 10 },
+    { "id": "gnews-ki-video", "name": "Google News", "type": "googlenews", "query": "Higgsfield OR Runway OR Kling OR \"Google Veo\" OR Sora video", "category": "ki", "weight": 1.2, "lang": "en" },
+    { "id": "gnews-ki-video-de", "name": "Google News", "type": "googlenews", "query": "CapCut OR \"KI-Video\" OR \"KI Videos\"", "category": "ki", "weight": 1.1, "lang": "de", "days": 3 },
+    { "id": "hn-ai-video", "name": "Hacker News", "type": "hn", "query": "AI video", "minPoints": 30, "category": "ki", "weight": 0.9, "lang": "en" },
+    { "id": "hn-front", "name": "Hacker News", "type": "hn", "frontPage": true, "minPoints": 150, "category": "ki", "weight": 0.8, "lang": "en", "classify": true, "onlyMatching": true },
+    { "id": "t3n", "name": "t3n", "type": "rss", "url": "https://t3n.de/rss.xml", "category": "ki", "weight": 1.0, "lang": "de", "classify": true, "onlyMatching": true },
+    { "id": "heise", "name": "heise online", "type": "rss", "url": "https://www.heise.de/rss/heise-atom.xml", "category": "ki", "weight": 0.9, "lang": "de", "classify": true, "onlyMatching": true },
+    { "id": "basicthinking", "name": "Basic Thinking", "type": "rss", "url": "https://www.basicthinking.de/blog/feed/", "category": "ki", "weight": 0.7, "lang": "de", "classify": true, "onlyMatching": true },
+
+    { "id": "petapixel", "name": "PetaPixel", "type": "rss", "url": "https://petapixel.com/feed/", "category": "video", "weight": 1.0, "lang": "en" },
+    { "id": "nofilmschool", "name": "No Film School", "type": "rss", "url": "https://nofilmschool.com/rss.xml", "category": "video", "weight": 1.0, "lang": "en" },
+    { "id": "newsshooter", "name": "Newsshooter", "type": "rss", "url": "https://www.newsshooter.com/feed/", "category": "video", "weight": 1.1, "lang": "en" },
+    { "id": "cined", "name": "CineD", "type": "rss", "url": "https://www.cined.com/feed/", "category": "video", "weight": 1.1, "lang": "en" },
+    { "id": "diyphotography", "name": "DIY Photography", "type": "rss", "url": "https://www.diyphotography.net/feed/", "category": "video", "weight": 0.8, "lang": "en" },
+    { "id": "apple-newsroom", "name": "Apple Newsroom", "type": "rss", "url": "https://www.apple.com/newsroom/rss-feed.rss", "category": "video", "weight": 1.2, "lang": "en" },
+    { "id": "engadget", "name": "Engadget", "type": "rss", "url": "https://www.engadget.com/rss.xml", "category": "video", "weight": 0.7, "lang": "en", "classify": true, "onlyMatching": true },
+    { "id": "gnews-gear-de", "name": "Google News", "type": "googlenews", "query": "DJI OR \"Premiere Pro\" OR \"Final Cut\" OR \"DaVinci Resolve\"", "category": "video", "weight": 1.0, "lang": "de" },
+
+    { "id": "sme", "name": "Social Media Examiner", "type": "rss", "url": "https://www.socialmediaexaminer.com/feed/", "category": "marketing", "weight": 0.9, "lang": "en", "classify": true },
+    { "id": "jonloomer", "name": "Jon Loomer", "type": "rss", "url": "https://www.jonloomer.com/feed/", "category": "marketing", "weight": 1.0, "lang": "en", "max": 15 },
+    { "id": "omr", "name": "OMR", "type": "rss", "url": "https://omr.com/de/feed", "category": "marketing", "weight": 1.0, "lang": "de", "classify": true, "max": 25 },
+    { "id": "hubspot", "name": "HubSpot Blog", "type": "rss", "url": "https://blog.hubspot.com/marketing/rss.xml", "category": "marketing", "weight": 0.6, "lang": "en", "max": 10 },
+    { "id": "gnews-meta-ads-de", "name": "Google News", "type": "googlenews", "query": "Meta Ads OR Facebook Ads", "category": "marketing", "weight": 1.0, "lang": "de", "days": 7 },
+    { "id": "gnews-meta-ads-en", "name": "Google News", "type": "googlenews", "query": "\"Meta Ads\" OR \"Facebook Ads\"", "category": "marketing", "weight": 0.9, "lang": "en", "days": 3, "max": 10 },
+    { "id": "gnews-leads-de", "name": "Google News", "type": "googlenews", "query": "Leadgenerierung OR Kundengewinnung OR \"lokales Marketing\"", "category": "marketing", "weight": 1.0, "lang": "de", "days": 5 },
+
+    { "id": "gtrends-de", "name": "Google Trends", "type": "gtrends", "url": "https://trends.google.com/trending/rss?geo=DE", "category": "trends", "weight": 1.1, "lang": "de" },
+    { "id": "knowyourmeme", "name": "Know Your Meme", "type": "rss", "url": "https://knowyourmeme.com/newsfeed.rss", "category": "trends", "weight": 0.9, "lang": "en" },
+    { "id": "gnews-viral", "name": "Google News", "type": "googlenews", "query": "viral TikTok Trend OR Meme", "category": "trends", "weight": 1.0, "lang": "de", "days": 3 },
+
+    { "id": "haz-neustadt", "name": "HAZ Neustadt", "type": "rss", "url": "https://www.haz.de/arc/outboundfeeds/rss/category/lokales/umland/neustadt/", "category": "region", "weight": 1.4, "lang": "de" },
+    { "id": "haz", "name": "HAZ", "type": "rss", "url": "https://www.haz.de/arc/outboundfeeds/rss/", "category": "region", "weight": 1.0, "lang": "de", "keywords": ["Hannover", "Neustadt", "Wunstorf", "Garbsen", "Langenhagen", "Wedemark", "Region", "Verein", "Unternehmen", "Betrieb", "eröffnet", "Gründer", "Start-up", "Startup"] },
+    { "id": "neuepresse", "name": "Neue Presse", "type": "rss", "url": "https://www.neuepresse.de/arc/outboundfeeds/rss/", "category": "region", "weight": 0.9, "lang": "de", "keywords": ["Hannover", "Neustadt", "Wunstorf", "Garbsen", "Langenhagen", "Wedemark", "Verein", "Unternehmen", "Betrieb", "eröffnet", "Gründer"] },
+    { "id": "ndr-nds", "name": "NDR Niedersachsen", "type": "rss", "url": "https://www.ndr.de/nachrichten/niedersachsen/index-rss.xml", "category": "region", "weight": 0.9, "lang": "de", "keywords": ["Hannover", "Neustadt", "Wunstorf", "Garbsen", "Langenhagen", "Wedemark", "Nienburg", "Steinhuder"] },
+    { "id": "gnews-neustadt", "name": "Google News", "type": "googlenews", "query": "\"Neustadt am Rübenberge\" OR \"Neustadt a. Rbge\"", "category": "region", "weight": 1.3, "lang": "de", "days": 3 },
+    { "id": "gnews-hannover-business", "name": "Google News", "type": "googlenews", "query": "Hannover (Unternehmen OR Gründer OR Verein OR Handwerk)", "category": "region", "weight": 0.9, "lang": "de" }
+  ]
+}
