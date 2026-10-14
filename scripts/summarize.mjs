@@ -10,9 +10,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_FILE = path.join(ROOT, "public", "data", "news.json");
 
 const MODEL = process.env.AI_MODEL || "claude-haiku-5-5";
-const MAX_ITEMS = clampInt(process.env.AI_MAX_ITEMS, 40, 0, 400);
-const MAX_REQUESTS = clampInt(process.env.AI_MAX_REQUESTS, 8, 0, 100);
-const BATCH_SIZE = 8;
+const MAX_ITEMS = clampInt(process.env.AI_MAX_ITEMS, 100, 0, 600);
+const MAX_REQUESTS = clampInt(process.env.AI_MAX_REQUESTS, 12, 0, 100);
+const BATCH_SIZE = 10;
 const MAX_AGE_HOURS = 48;
 // Preis für die Kostenschätzung im Log (USD pro 1 Mio Token, Haiku 5.5)
 const PRICE = { input: 0.1, output: 0.5 };
@@ -26,9 +26,10 @@ function clampInt(v, def, min, max) {
 
 const SYSTEM = `Du hilfst Andi, einem selbstständigen Videografen und Social-Media-Manager aus Neustadt am Rübenberge (Region Hannover). Seine Kunden sind kleine Betriebe, Vereine und Kommunen; er dreht Reels, Imagefilme und Social-Media-Content und arbeitet viel mit KI-Tools.
 
-Du bekommst Nachrichtenmeldungen und lieferst pro Meldung zwei Dinge auf Deutsch:
-1. "summary": ein einziger klarer Satz (max. 160 Zeichen), was passiert ist und warum es für Andi relevant ist. Kein Clickbait, keine Floskeln, kein "Du".
-2. "hook": der erste gesprochene Satz eines Reels zu diesem Thema (max. 110 Zeichen). Konkret, neugierig machend, direkt an die Zielgruppe (Unternehmer in der Region oder Creator). Keine Emojis, keine Hashtags, keine Anführungszeichen.
+Du bekommst Nachrichtenmeldungen und lieferst pro Meldung drei Dinge auf Deutsch:
+1. "title_de": die Schlagzeile auf Deutsch, wie eine Zeitung sie schreiben würde (max. 90 Zeichen, sachlich, Eigennamen und Produktnamen unverändert, keine Anführungszeichen). Ist die Schlagzeile schon auf Deutsch, gib einen leeren String zurück.
+2. "summary": ein einziger klarer Satz (max. 160 Zeichen), was passiert ist und warum es für Andi relevant ist. Kein Clickbait, keine Floskeln, kein "Du".
+3. "hook": der erste gesprochene Satz eines Reels zu diesem Thema (max. 110 Zeichen). Konkret, neugierig machend, direkt an die Zielgruppe (Unternehmer in der Region oder Creator). Keine Emojis, keine Hashtags, keine Anführungszeichen.
 
 Bei Meldungen, die sich nicht für ein Video eignen (z. B. Aktienkurse, reine Pressemitteilungen ohne Nutzen), setze "hook" auf einen leeren String. Gib ausschließlich das JSON zurück.`;
 
@@ -41,10 +42,11 @@ const SCHEMA = {
         type: "object",
         properties: {
           id: { type: "string" },
+          title_de: { type: "string" },
           summary: { type: "string" },
           hook: { type: "string" },
         },
-        required: ["id", "summary", "hook"],
+        required: ["id", "title_de", "summary", "hook"],
         additionalProperties: false,
       },
     },
@@ -64,7 +66,7 @@ function pickCandidates(items) {
 
 function formatBatch(batch) {
   return batch
-    .map((it) => `ID: ${it.id}\nTitel: ${it.title}\nQuelle: ${it.source} (${it.category})\nTeaser: ${it.summary || "-"}`)
+    .map((it) => `ID: ${it.id}\nTitel: ${it.title}\nSprache: ${it.lang === "de" ? "Deutsch" : "Englisch"}\nQuelle: ${it.source} (${it.category})\nTeaser: ${it.summary || "-"}`)
     .join("\n\n");
 }
 
@@ -122,8 +124,9 @@ async function main() {
         if (!it) continue;
         const summary = String(out.summary || "").trim().slice(0, 220);
         const hook = String(out.hook || "").trim().slice(0, 160);
+        const titleDe = String(out.title_de || "").trim().replace(/^["„“]+|["“”]+$/g, "").slice(0, 140);
         if (!summary) continue;
-        it.ai = { summary, hook, model: MODEL, at: now };
+        it.ai = { summary, hook, titleDe: titleDe && titleDe !== it.title ? titleDe : "", model: MODEL, at: now };
         done++;
       }
       log(`Paket ${requests}: ${batch.length} Meldungen, ${response.usage.input_tokens} in / ${response.usage.output_tokens} out`);

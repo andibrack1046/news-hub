@@ -270,6 +270,13 @@
   function teaserText(it) {
     return it.ai?.summary || it.summary || "";
   }
+  // Deutsche Schlagzeile aus dem KI-Schritt, sonst Original; Original bleibt als Tooltip erhalten
+  function headline(it) {
+    const de = it.ai?.titleDe;
+    if (de) return `<a href="${esc(it.url)}" target="_blank" rel="noopener" title="${esc(it.title)}">${esc(de)}</a>`;
+    return `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>`;
+  }
+  const titleText = (it) => it.ai?.titleDe || it.title;
   function hookHtml(it) {
     return it.ai?.hook ? `<p class="hook"><span class="bar">Hook</span>${esc(it.ai.hook)}</p>` : "";
   }
@@ -279,7 +286,7 @@
       ${imgHtml(it)}
       <div>
         <span class="kicker">${esc(catLabel(it.category))}</span>
-        <h2><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h2>
+        <h2>${headline(it)}</h2>
         ${teaserText(it) ? `<p class="teaser">${esc(teaserText(it))}</p>` : ""}
         ${hookHtml(it)}
         ${metaHtml(it, { withCat: false })}
@@ -292,7 +299,7 @@
   function tileHtml(it) {
     return `<article class="tile${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
       ${imgHtml(it)}
-      <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+      <h3>${headline(it)}</h3>
       ${metaHtml(it)}
       ${miniHtml(it, { withUsed: false })}
     </article>`;
@@ -301,7 +308,7 @@
   function leadHtml(it, { withCat = false } = {}) {
     return `<article class="lead${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
       ${imgHtml(it)}
-      <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+      <h3>${headline(it)}</h3>
       ${teaserText(it) ? `<p class="teaser">${esc(teaserText(it))}</p>` : ""}
       ${hookHtml(it)}
       ${metaHtml(it, { withCat })}
@@ -314,7 +321,7 @@
     const showThumb = thumb && Boolean(it.image);
     return `<article class="row${showThumb ? "" : " no-thumb"}${isUsed(it) ? " done" : ""}" data-id="${esc(it.id)}">
       <div>
-        <h3><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+        <h3>${headline(it)}</h3>
         ${metaHtml(it, { withCat })}
         ${it.ai?.hook ? `<p class="hook" style="font-size:14px">${esc(it.ai.hook)}</p>` : ""}
         ${miniHtml(it)}
@@ -338,7 +345,7 @@
     return `<section class="ticker" aria-label="Neueste Meldungen">
       <div class="ressort-head"><h2>Ticker</h2><a href="#neueste">Alle Meldungen</a></div>
       <ul>${latest
-        .map((it) => `<li><time datetime="${esc(when(it))}">${esc(isToday(when(it)) ? clock(when(it)) : timeAgo(when(it)))}</time><div><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a><span>${esc(catLabel(it.category))} · ${esc(it.source)}</span></div></li>`)
+        .map((it) => `<li><time datetime="${esc(when(it))}">${esc(isToday(when(it)) ? clock(when(it)) : timeAgo(when(it)))}</time><div>${headline(it)}<span>${esc(catLabel(it.category))} · ${esc(it.source)}</span></div></li>`)
         .join("")}</ul>
     </section>`;
   }
@@ -431,7 +438,7 @@
 <article class="card idea${idea.done ? " done" : ""}" data-id="${esc(it.id)}">
   <div class="idea-grid">
     <div>
-      <h2 class="title">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}</h2>
+      <h2 class="title">${it.url ? headline(it) : esc(it.title)}</h2>
       <p class="meta"><span>${esc(it.source || "Eigene Idee")}</span>${it.publishedAt ? `<span>·</span><time>${esc(dateOnly(it.publishedAt))}</time>` : ""}<span>·</span><span>notiert ${esc(timeAgo(idea.createdAt))}</span></p>
     </div>
     ${it.image ? imgHtml(it, "square") : ""}
@@ -518,7 +525,8 @@
     const lines = [`# Videoideen aus dem News-Hub`, ``, `Exportiert am ${dateOnly(new Date().toISOString())}, ${ideas.length} Ideen.`, ``];
     const block = (idea) => {
       const it = idea.item;
-      const out = [`## ${it.title}`, ``];
+      const out = [`## ${titleText(it)}`, ``];
+      if (it.ai?.titleDe) out.push(`- Original: ${it.title}`);
       out.push(`- Status: ${idea.done ? "gedreht" : "offen"}`);
       if (it.source) out.push(`- Quelle: ${it.source}${it.publishedAt ? `, ${dateOnly(it.publishedAt)}` : ""}`);
       if (it.url) out.push(`- Link: ${it.url}`);

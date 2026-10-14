@@ -90,18 +90,18 @@ Die App nutzt nur relative Pfade und läuft deshalb in jedem Unterordner.
 
 ## KI-Zusammenfassungen (optional)
 
-`scripts/summarize.mjs` schickt die wichtigsten neuen Meldungen (ohne `ai`, führend im Bündel, jünger als 48 Std., nach `score`) in Paketen zu 8 an Claude und bekommt pro Meldung einen Satz Zusammenfassung und einen Reel-Hook auf Deutsch zurück (strukturierte JSON-Ausgabe). Ohne Key wird der Schritt übersprungen, die App läuft unverändert.
+`scripts/summarize.mjs` schickt die neuen Meldungen (ohne `ai`, führend im Bündel, jünger als 48 Std., nach `score`) in Paketen zu 10 an Claude und bekommt pro Meldung zurück: **deutsche Schlagzeile** (bei englischen Quellen), einen Satz Zusammenfassung und einen Reel-Hook, alles auf Deutsch (strukturierte JSON-Ausgabe). Die App zeigt dann die deutsche Überschrift, das Original steht im Tooltip und im Markdown-Export. Ohne Key wird der Schritt übersprungen, die App läuft unverändert auf Englisch/Deutsch gemischt.
 
 Kostendeckel:
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `ANTHROPIC_API_KEY` (Secret) | leer | ohne Key kein KI-Schritt |
-| `AI_MAX_ITEMS` (Variable) | 40 | Meldungen pro Lauf |
-| `AI_MAX_REQUESTS` | 8 | Anfragen pro Lauf (8 × 8 = 64 Meldungen Obergrenze) |
+| `AI_MAX_ITEMS` (Variable) | 100 | Meldungen pro Lauf |
+| `AI_MAX_REQUESTS` | 12 | Anfragen pro Lauf (12 × 10 = 120 Meldungen Obergrenze) |
 | `AI_MODEL` (Variable) | `claude-haiku-5-5` | günstiges Modell; `claude-sonnet-5-5` für bessere Hooks |
 
-Kostenschätzung mit Haiku 5.5 (0,10 USD je Mio. Input-Token, 0,50 USD je Mio. Output-Token): pro Meldung ca. 150 Token Input und 80 Token Output, plus ca. 400 Token Systemprompt je Anfrage (gecacht). 40 Meldungen pro Lauf ≈ 9.000 Input- + 3.200 Output-Token ≈ **0,003 USD pro Lauf**. Bei 8 Läufen am Tag, meist mit weniger neuen Meldungen: **unter 1 USD im Monat**. Mit Sonnet 5.5 etwa das 20-fache, also rund 10 bis 15 USD im Monat. Die tatsächlichen Token stehen nach jedem Lauf im Actions-Log und in `news.json` unter `ai.estimatedCostUsd`.
+Kostenschätzung mit Haiku 5.5 (0,10 USD je Mio. Input-Token, 0,50 USD je Mio. Output-Token): pro Meldung ca. 170 Token Input und 110 Token Output, plus ca. 450 Token Systemprompt je Anfrage (gecacht). 100 Meldungen pro Lauf ≈ 22.000 Input- + 11.000 Output-Token ≈ **0,008 USD pro Lauf**. Bei 8 Läufen am Tag, meist mit deutlich weniger neuen Meldungen (nur neue werden übersetzt): **1 bis 2 USD im Monat**. Mit Sonnet 5.5 etwa das 20-fache. Die tatsächlichen Token stehen nach jedem Lauf im Actions-Log und in `news.json` unter `ai.estimatedCostUsd`.
 
 Lokal testen: `ANTHROPIC_API_KEY=sk-… npm run summarize` (nach `npm install` und `npm run fetch`).
 
